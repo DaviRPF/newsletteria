@@ -9,6 +9,7 @@ export class User {
     this.trialEndDate = data.trialEndDate || null;
     this.deliveryTime = data.deliveryTime || '10:00';
     this.timezone = data.timezone || 'America/Sao_Paulo';
+    this.profileDescription = data.profileDescription || '';
     this.createdAt = data.createdAt || new Date();
     this.updatedAt = data.updatedAt || new Date();
   }
@@ -62,5 +63,17 @@ export class User {
       subscriptionStatus: 'active',
       deliveryTime
     }).toArray();
+  }
+
+  static async updateProfileDescription(db, phone, profileDescription) {
+    return await db.collection('users').updateOne(
+      { phone },
+      { 
+        $set: {
+          profileDescription,
+          updatedAt: new Date()
+        }
+      }
+    );
   }
 }

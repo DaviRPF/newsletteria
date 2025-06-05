@@ -134,7 +134,7 @@ class SchedulerService {
           
           await new Promise(resolve => setTimeout(resolve, 1000));
           
-          await whatsappService.sendNewsToUser(subscriber.phone, topNews);
+          await whatsappService.sendNewsToUser(subscriber.phone, topNews, false, this.db);
           
           console.log(`Newsletter enviada para ${subscriber.phone}`);
           
@@ -172,7 +172,7 @@ class SchedulerService {
       const intro = await aiService.generateDailyNewsletter(topNews);
       
       await whatsappService.sendMessage(phone, `🧪 *TESTE* - ${intro}`);
-      await whatsappService.sendNewsToUser(phone, topNews);
+      await whatsappService.sendNewsToUser(phone, topNews, false, this.db);
       
       return { success: true, message: 'Newsletter de teste enviada' };
     } catch (error) {

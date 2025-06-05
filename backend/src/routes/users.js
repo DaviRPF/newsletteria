@@ -77,6 +77,7 @@ export default async function userRoutes(fastify, options) {
           subscriptionStatus: user.subscriptionStatus,
           deliveryTime: user.deliveryTime,
           timezone: user.timezone,
+          profileDescription: user.profileDescription || '',
           trialStartDate: user.trialStartDate,
           trialEndDate: user.trialEndDate
         }
@@ -141,6 +142,45 @@ export default async function userRoutes(fastify, options) {
           deliveryTime: sub.deliveryTime,
           subscriptionStatus: sub.subscriptionStatus
         }))
+      });
+
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.status(500).send({
+        error: 'Erro interno do servidor'
+      });
+    }
+  });
+
+  fastify.put('/profile-description/:phone', async (request, reply) => {
+    try {
+      const { phone } = request.params;
+      const { profileDescription } = request.body;
+
+      if (typeof profileDescription !== 'string') {
+        return reply.status(400).send({
+          error: 'Descrição do perfil deve ser um texto'
+        });
+      }
+
+      if (profileDescription.length > 500) {
+        return reply.status(400).send({
+          error: 'Descrição do perfil não pode ter mais de 500 caracteres'
+        });
+      }
+
+      const user = await User.findByPhone(fastify.mongo.db, phone);
+      if (!user) {
+        return reply.status(404).send({
+          error: 'Usuário não encontrado'
+        });
+      }
+
+      await User.updateProfileDescription(fastify.mongo.db, phone, profileDescription);
+
+      return reply.send({
+        message: 'Descrição do perfil atualizada com sucesso',
+        profileDescription
       });
 
     } catch (error) {

@@ -8,6 +8,9 @@ const ProfilePage = () => {
   const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [profileDescription, setProfileDescription] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
 
   useEffect(() => {
     loadProfile();
@@ -17,27 +20,47 @@ const ProfilePage = () => {
     try {
       setLoading(true);
       
-      // Por enquanto sem MongoDB, vamos simular
-      // const userResponse = await api.get(`/users/profile/${phone}`);
-      // const subscriptionResponse = await api.get(`/subscriptions/status/${phone}`);
+      // Debug: vamos ver o que está sendo chamado
+      console.log('Tentando carregar perfil para:', phone);
+      console.log('URL da API:', `${api.defaults.baseURL}/users/profile/${phone}`);
       
-      // Dados simulados
+      // Carrega dados reais do usuário
+      const userResponse = await api.get(`/users/profile/${phone}`);
+      console.log('Resposta da API:', userResponse.data);
+      const user = userResponse.data.user;
+      
       setProfile({
-        phone: phone,
-        name: 'Usuário',
-        email: 'usuario@email.com',
-        deliveryTime: '10:00'
+        phone: user.phone,
+        name: user.name,
+        email: user.email,
+        deliveryTime: user.deliveryTime || '10:00',
+        profileDescription: user.profileDescription || ''
       });
       
-      setSubscription({
-        subscriptionStatus: 'demo',
-        isInTrial: true,
-        daysLeft: 2
-      });
+      setProfileDescription(user.profileDescription || '');
+      
+      // Tenta carregar status da assinatura
+      try {
+        const subscriptionResponse = await api.get(`/subscriptions/status/${phone}`);
+        setSubscription(subscriptionResponse.data);
+      } catch (subError) {
+        // Se não conseguir carregar assinatura, usa valores padrão
+        setSubscription({
+          subscriptionStatus: 'inactive',
+          isInTrial: false,
+          daysLeft: 0
+        });
+      }
 
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
-      setError('Erro ao carregar informações do perfil');
+      
+      // Se der erro 404, usuário não existe
+      if (error.response?.status === 404) {
+        setError('Perfil não encontrado. Por favor, cadastre-se primeiro.');
+      } else {
+        setError('Erro ao carregar informações do perfil');
+      }
     } finally {
       setLoading(false);
     }
@@ -48,6 +71,44 @@ const ProfilePage = () => {
       return `(${phone.slice(0, 2)}) ${phone.slice(2, 7)}-${phone.slice(7)}`;
     }
     return phone;
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profileDescription.trim()) {
+      setSaveMessage('Por favor, preencha a descrição do seu perfil');
+      return;
+    }
+
+    if (profileDescription.length > 500) {
+      setSaveMessage('A descrição não pode ter mais de 500 caracteres');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveMessage('');
+
+    try {
+      // Salva perfil via API
+      await api.put(`/users/profile-description/${phone}`, { profileDescription });
+      
+      setSaveMessage('✅ Perfil salvo com sucesso! Suas notícias agora serão personalizadas.');
+      
+      // Atualiza o profile local
+      setProfile(prev => ({ ...prev, profileDescription }));
+      
+    } catch (error) {
+      console.error('Erro ao salvar perfil:', error);
+      
+      if (error.response?.status === 404) {
+        setSaveMessage('❌ Usuário não encontrado. Por favor, faça o cadastro primeiro.');
+      } else if (error.response?.data?.error) {
+        setSaveMessage(`❌ ${error.response.data.error}`);
+      } else {
+        setSaveMessage('❌ Erro ao salvar. Tente novamente.');
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (loading) {
@@ -157,6 +218,72 @@ const ProfilePage = () => {
             </div>
           </div>
 
+          {/* Perfil Personalizado */}
+          <div className="mb-8">
+            <h3 className="text-xl font-semibold mb-4">🎯 Perfil Personalizado</h3>
+            <p className="text-gray-600 mb-4">
+              Conte um pouco sobre você para receber análises personalizadas sobre como as notícias podem te afetar:
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Descrição do seu perfil
+                </label>
+                <textarea
+                  value={profileDescription}
+                  onChange={(e) => setProfileDescription(e.target.value)}
+                  placeholder="Ex: Tenho 28 anos, sou médico recém-formado trabalhando no SUS. Me interesso por políticas de saúde pública e como elas afetam minha profissão..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+                  rows="4"
+                  maxLength="500"
+                />
+                <div className="flex justify-between items-center mt-2">
+                  <span className="text-sm text-gray-500">
+                    {profileDescription.length}/500 caracteres
+                  </span>
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={isSaving}
+                    className="btn btn-primary px-6"
+                  >
+                    {isSaving ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-save mr-2"></i>
+                        Salvar Perfil
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+              
+              {saveMessage && (
+                <div className={`p-4 rounded-lg ${
+                  saveMessage.includes('✅') 
+                    ? 'bg-green-50 text-green-700 border border-green-200' 
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
+                  {saveMessage}
+                </div>
+              )}
+              
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h4 className="font-semibold text-blue-800 mb-2">💡 Como funciona?</h4>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Descreva sua idade, profissão, interesses e situação atual</li>
+                  <li>• Nossa IA analisará como cada notícia pode impactar sua vida</li>
+                  <li>• Você receberá uma seção personalizada em cada notícia</li>
+                  <li>• Exemplo: "Como isso afeta você como estudante de medicina"</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           {/* Comandos WhatsApp */}
           <div className="bg-green-50 p-6 rounded-lg mb-8">
             <h3 className="text-xl font-semibold mb-4">📱 Comandos WhatsApp</h3>
@@ -199,14 +326,6 @@ const ProfilePage = () => {
             </Link>
           </div>
 
-          {/* Info */}
-          <div className="mt-8 text-center text-gray-500 text-sm">
-            <p>
-              Este é o modo demonstração. Com MongoDB configurado,
-              <br />
-              você verá suas informações reais aqui.
-            </p>
-          </div>
         </div>
       </div>
     </div>

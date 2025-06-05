@@ -23,15 +23,15 @@ await fastify.register(jwt, {
   secret: process.env.JWT_SECRET || 'supersecret'
 });
 
-// MongoDB temporariamente desabilitado para testar WhatsApp
-// await fastify.register(mongodb, {
-//   forceClose: true,
-//   url: process.env.MONGODB_URL || 'mongodb://localhost:27017/newsletter'
-// });
+// MongoDB
+await fastify.register(mongodb, {
+  forceClose: true,
+  url: process.env.MONGODB_URL || 'mongodb://localhost:27017/newsletter'
+});
 
-// await fastify.register(userRoutes, { prefix: '/api/users' });
-// await fastify.register(subscriptionRoutes, { prefix: '/api/subscriptions' });
-// await fastify.register(newsRoutes, { prefix: '/api/news' });
+await fastify.register(userRoutes, { prefix: '/api/users' });
+await fastify.register(subscriptionRoutes, { prefix: '/api/subscriptions' });
+await fastify.register(newsRoutes, { prefix: '/api/news' });
 await fastify.register(whatsappRoutes, { prefix: '/api/whatsapp' });
 
 fastify.get('/', async (request, reply) => {

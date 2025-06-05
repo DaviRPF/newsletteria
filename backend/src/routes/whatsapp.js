@@ -172,7 +172,7 @@ export default async function whatsappRoutes(fastify, options) {
 
       fastify.log.info(`Enviando newsletter para ${subscribers.length} assinantes`);
       
-      whatsappService.sendBulkNews(subscribers, news).catch(err => {
+      whatsappService.sendBulkNews(subscribers, news, fastify.mongo.db).catch(err => {
         fastify.log.error('Erro no envio em massa:', err);
       });
 

@@ -4,6 +4,7 @@ import developerManager from '../utils/developers.js';
 import tempNewsService from './tempNewsService.js';
 import imageService from './imageService.js';
 import canvasImageService from './canvasImageService.js';
+import aiService from './aiService.js';
 
 class WhatsAppService {
   constructor() {
@@ -65,8 +66,9 @@ class WhatsAppService {
           },
           disableWelcome: true,
           updatesLog: false,
-          autoClose: 60000,
-          createPathFileToken: false,
+          autoClose: 0,
+          createPathFileToken: true,
+          refreshQR: 0,
         }
       );
 
@@ -182,7 +184,9 @@ O horário atual é baseado no fuso de Brasília.`;
   }
 
   setDatabase(db) {
+    console.log('🔍 DEBUG: setDatabase chamado com:', db ? 'Banco Conectado' : 'NULL');
     this.db = db;
+    console.log('🔍 DEBUG: this.db agora é:', this.db ? 'Definido' : 'NULL');
   }
 
   async updateUserTime(phone, time) {
@@ -323,7 +327,7 @@ Ou entre em contato conosco através do nosso suporte.`;
     }
   }
 
-  async sendNewsToUser(phone, news, useImages = false) {
+  async sendNewsToUser(phone, news, useImages = false, db = null) {
     if (!this.isConnected || !this.client) {
       throw new Error('WhatsApp não está conectado');
     }
@@ -331,8 +335,29 @@ Ou entre em contato conosco através do nosso suporte.`;
     try {
       const chatId = phone.includes('@c.us') ? phone : `${phone}@c.us`;
       
-      // Sempre usa texto formatado bonito
-      await this.sendNewsAsText(chatId, news);
+      // Debug da conexão do banco
+      console.log(`🔍 DEBUG: DB passado para sendNewsToUser:`, db ? 'Conectado' : 'NULL');
+      console.log(`🔍 DEBUG: this.db:`, this.db ? 'Conectado' : 'NULL');
+      
+      // Busca perfil do usuário se DB estiver disponível
+      let userProfile = null;
+      const activeDb = db || this.db;
+      
+      if (activeDb) {
+        try {
+          console.log(`🔍 DEBUG: Buscando usuário ${phone} no banco...`);
+          userProfile = await User.findByPhone(activeDb, phone);
+          console.log(`👤 DEBUG: Perfil encontrado:`, userProfile);
+          console.log(`👤 Perfil carregado para ${phone}: ${userProfile?.profileDescription ? 'Personalização ativa' : 'Sem personalização'}`);
+        } catch (error) {
+          console.log(`⚠️ Erro ao carregar perfil de ${phone}:`, error.message);
+        }
+      } else {
+        console.log(`❌ DEBUG: Nenhum banco de dados disponível para carregar perfil`);
+      }
+      
+      // Envia notícias com personalização se disponível
+      await this.sendNewsAsText(chatId, news, userProfile);
 
     } catch (error) {
       console.error(`Erro ao enviar notícias para ${phone}:`, error);
@@ -425,19 +450,30 @@ Ou entre em contato conosco através do nosso suporte.`;
     }
   }
 
-  async sendNewsAsText(chatId, news) {
+  async sendNewsAsText(chatId, news, userProfile = null) {
+    // Debug do perfil do usuário
+    console.log('👤 DEBUG: UserProfile recebido:', userProfile);
+    console.log('📝 DEBUG: ProfileDescription:', userProfile?.profileDescription);
+    
     // Enviar introdução simples
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     
-    const introMessage = `🌅 *Newsletter WhatsApp* - ${currentTime}\n\n📰 ${news.length} principais notícias de hoje:`;
+    let introMessage = `🌅 *Newsletter WhatsApp* - ${currentTime}\n\n📰 ${news.length} principais notícias de hoje`;
+    
+    // Adiciona nota sobre personalização se o usuário tem perfil
+    if (userProfile && userProfile.profileDescription) {
+      introMessage += `\n🎯 _Análise personalizada incluída_`;
+    }
+    introMessage += `:`;
+    
     await this.client.sendText(chatId, introMessage);
     
     for (let i = 0; i < news.length; i++) {
       const article = news[i];
       const articleNumber = i + 1;
       
-      await this.sendSingleNewsAsText(chatId, article, articleNumber);
+      await this.sendSingleNewsAsText(chatId, article, articleNumber, userProfile);
       
       // Delay entre notícias para melhor experiência
       if (i < news.length - 1) {
@@ -455,7 +491,7 @@ Ou entre em contato conosco através do nosso suporte.`;
     await this.client.sendText(chatId, footerMessage);
   }
 
-  async sendSingleNewsAsText(chatId, article, articleNumber) {
+  async sendSingleNewsAsText(chatId, article, articleNumber, userProfile = null) {
     let message = `\n`;
     
     // Título destacado
@@ -465,6 +501,32 @@ Ou entre em contato conosco através do nosso suporte.`;
     const content = article.rewrittenContent || article.originalContent || '';
     const formattedContent = content.replace(/\n\n/g, '\n\n');
     message += `${formattedContent}\n\n`;
+
+    // Análise personalizada se o usuário tem perfil
+    if (userProfile && userProfile.profileDescription) {
+      try {
+        console.log(`🎯 DEBUG: Gerando análise personalizada para notícia ${articleNumber}...`);
+        console.log(`📝 DEBUG: Profile usado: "${userProfile.profileDescription}"`);
+        const personalizedImpact = await aiService.generatePersonalizedImpact(
+          article.title,
+          content,
+          userProfile.profileDescription
+        );
+
+        console.log(`✅ DEBUG: Análise gerada: "${personalizedImpact}"`);
+        
+        if (personalizedImpact) {
+          message += `🎯 *Como isso afeta você:*\n`;
+          message += `${personalizedImpact}\n\n`;
+        } else {
+          console.log(`⚠️ DEBUG: Análise personalizada retornou null/vazio`);
+        }
+      } catch (error) {
+        console.error('❌ DEBUG: Erro ao gerar análise personalizada:', error);
+      }
+    } else {
+      console.log(`⚠️ DEBUG: Sem perfil para análise personalizada. UserProfile:`, userProfile);
+    }
     
     // Fonte e horário de forma simples
     message += `📍 ${article.source}`;
@@ -491,12 +553,12 @@ Ou entre em contato conosco através do nosso suporte.`;
     }
   }
 
-  async sendBulkNews(subscribers, news) {
+  async sendBulkNews(subscribers, news, db = null) {
     console.log(`Enviando notícias para ${subscribers.length} assinantes...`);
     
     for (const subscriber of subscribers) {
       try {
-        await this.sendNewsToUser(subscriber.phone, news);
+        await this.sendNewsToUser(subscriber.phone, news, false, db);
         console.log(`Notícias enviadas para ${subscriber.phone}`);
         
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -820,10 +882,10 @@ Após assinar, você receberá uma mensagem de confirmação aqui!`;
       if (realNews.length === 0) {
         await this.sendMessage(phone, '⚠️ Nenhuma notícia disponível no momento. Usando notícias de exemplo...');
         const testNews = this.getTestNews();
-        await this.sendNewsToUser(phone, testNews, true); // true = usar imagens
+        await this.sendNewsToUser(phone, testNews, true, this.db); // true = usar imagens
       } else {
         const newsToSend = realNews.slice(0, 4);
-        await this.sendNewsToUser(phone, newsToSend, true); // true = usar imagens
+        await this.sendNewsToUser(phone, newsToSend, true, this.db); // true = usar imagens
       }
       
       console.log(`✅ Newsletter com IMAGENS enviada para ${phone}`);
@@ -844,7 +906,7 @@ Após assinar, você receberá uma mensagem de confirmação aqui!`;
       if (realNews.length === 0) {
         await this.sendMessage(phone, '⚠️ Nenhuma notícia disponível no momento. Usando notícias de exemplo...');
         const testNews = this.getTestNews();
-        await this.sendNewsToUser(phone, testNews, false); // false = usar texto
+        await this.sendNewsToUser(phone, testNews, false, this.db); // false = usar texto
       } else {
         const newsToSend = realNews.slice(0, 4);
         
@@ -863,7 +925,7 @@ ${newsToSend.some(n => n.processed) ? '🤖 Processadas e reescritas pela IA Gem
         
         await new Promise(resolve => setTimeout(resolve, 2000));
         
-        await this.sendNewsToUser(phone, newsToSend, false); // false = usar texto
+        await this.sendNewsToUser(phone, newsToSend, false, this.db); // false = usar texto
       }
       
       console.log(`✅ Newsletter com TEXTO enviada para ${phone}`);

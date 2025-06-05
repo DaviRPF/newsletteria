@@ -363,6 +363,55 @@ Retorne APENAS o número da pontuação (0-100), sem explicações.
       return 50;
     }
   }
+
+  async generatePersonalizedImpact(newsTitle, newsContent, userProfile) {
+    try {
+      const model = this.initializeAI();
+      if (!model) throw new Error('AI não inicializada');
+
+      if (!userProfile || !userProfile.trim()) {
+        return null; // Não gera análise se não tem perfil
+      }
+
+      const prompt = `
+Analise como esta notícia pode impactar especificamente este usuário baseado no perfil dele:
+
+PERFIL DO USUÁRIO:
+${userProfile}
+
+NOTÍCIA:
+Título: ${newsTitle}
+Conteúdo: ${newsContent.substring(0, 800)}...
+
+INSTRUÇÕES:
+1. Escreva uma análise personalizada de 2-3 frases
+2. Foque especificamente em como isso afeta a vida/profissão/interesses desta pessoa
+3. Use uma linguagem direta e relevante
+4. Seja específico, não genérico
+5. Se a notícia não tem relação clara com o perfil, diga "Esta notícia não tem impacto direto no seu perfil atual."
+
+EXEMPLOS DE BOA ANÁLISE:
+- Para estudante de medicina: "Como futuro médico, essa mudança na regulamentação do SUS pode afetar suas oportunidades de residência em hospitais públicos."
+- Para empresário: "Essa nova política fiscal pode aumentar seus custos operacionais em cerca de 3-5% se sua empresa se enquadra no Simples Nacional."
+
+Escreva APENAS a análise, sem títulos ou formatação extra:
+`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const analysis = response.text().trim();
+
+      // Valida se é uma resposta útil
+      if (analysis.length < 20 || analysis.toLowerCase().includes('não posso') || analysis.toLowerCase().includes('não é possível')) {
+        return null;
+      }
+
+      return analysis;
+    } catch (error) {
+      console.error('Erro ao gerar análise personalizada:', error);
+      return null;
+    }
+  }
 }
 
 export default new AIService();

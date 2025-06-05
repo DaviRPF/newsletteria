@@ -7,10 +7,12 @@ export async function initializeServices(fastify) {
     
     console.log('📱 Conectando WhatsApp...');
     await whatsappService.initialize();
-    // whatsappService.setDatabase(fastify.mongo.db);
+    
+    console.log('🔍 DEBUG: fastify.mongo.db =', fastify.mongo.db ? 'Conectado' : 'NULL');
+    whatsappService.setDatabase(fastify.mongo.db);
     
     console.log('⏰ Inicializando scheduler...');
-    await schedulerService.initialize(null); // Inicia sem DB para desenvolvedores
+    await schedulerService.initialize(fastify.mongo.db);
     
     console.log('✅ Todos os serviços inicializados com sucesso!');
     

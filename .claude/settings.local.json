@@ -27,7 +27,11 @@
       "Bash(npm cache clean:*)",
       "Bash(npm run dev:*)",
       "Bash(npm ls:*)",
-      "Bash(sudo rm:*)"
+      "Bash(sudo rm:*)",
+      "Bash(curl:*)",
+      "Bash(sudo systemctl start:*)",
+      "Bash(mongod:*)",
+      "Bash(docker:*)"
     ],
     "deny": []
   }
