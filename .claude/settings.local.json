@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(mkdir:*)",
+      "Bash(npx create-react-app:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(cp:*)",
+      "Bash(npm start)",
+      "Bash(timeout 10s npm start)",
+      "WebFetch(domain:rss.home.uol.com.br)",
+      "WebFetch(domain:rss.bol.uol.com.br)",
+      "WebFetch(domain:rss.feedspot.com)",
+      "WebFetch(domain:feeds.folha.uol.com.br)",
+      "WebFetch(domain:agenciabrasil.ebc.com.br)",
+      "WebFetch(domain:noticias.r7.com)",
+      "Bash(pkill:*)",
+      "WebFetch(domain:operamundi.uol.com.br)",
+      "Bash(npm restart)",
+      "Bash(grep:*)",
+      "Bash(node:*)",
+      "Bash(rm:*)",
+      "Bash(timeout 10 npm start:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm ls:*)",
+      "Bash(sudo rm:*)"
+    ],
+    "deny": []
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "newsletter-whatsapp-backend",
+  "version": "1.0.0",
+  "description": "Backend para sistema de newsletter via WhatsApp",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "nodemon src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "newsletter",
+    "whatsapp",
+    "fastify",
+    "venom"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/cors": "^8.4.0",
+    "@fastify/jwt": "^7.2.4",
+    "@fastify/mongodb": "^6.1.0",
+    "@google/generative-ai": "^0.1.3",
+    "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
+    "cheerio": "^1.0.0-rc.12",
+    "dotenv": "^16.5.0",
+    "fastify": "^4.24.3",
+    "mercadopago": "^1.5.17",
+    "node-cron": "^3.0.3",
+    "rss-parser": "^3.13.0",
+    "sharp": "^0.34.2",
+    "venom-bot": "^5.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
