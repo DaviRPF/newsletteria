@@ -6,6 +6,7 @@ import imageService from './imageService.js';
 import canvasImageService from './canvasImageService.js';
 import aiService from './aiService.js';
 import tokenTracker from './tokenTracker.js';
+import sourceDiscoveryService from './sourceDiscoveryService.js';
 
 class WhatsAppService {
   constructor() {
@@ -460,7 +461,7 @@ Ou entre em contato conosco através do nosso suporte.`;
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     
-    let introMessage = `🌅 *Newsletter WhatsApp* - ${currentTime}\n\n📰 ${news.length} principais notícias de hoje`;
+    let introMessage = `🌅 *Newsletter WhatsApp* - ${currentTime}\n\n📰 As ${news.length} principais notícias de hoje`;
     
     // Adiciona nota sobre personalização se o usuário tem perfil
     if (userProfile && userProfile.profileDescription) {
@@ -542,12 +543,24 @@ Ou entre em contato conosco através do nosso suporte.`;
 
     await this.client.sendText(chatId, message);
 
-    // Envia imagem se disponível
+    // Envia imagem se disponível e válida
     if (article.imageUrl) {
       try {
-        console.log(`📸 Enviando imagem da notícia ${articleNumber}: ${article.imageUrl}`);
-        await this.client.sendImage(chatId, article.imageUrl, `noticia-${articleNumber}`, `📸 Imagem da Notícia ${articleNumber}`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Filtra apenas imagens válidas (não SVG ou logos)
+        const isValidImage = !article.imageUrl.includes('.svg') && 
+                            !article.imageUrl.includes('logo') &&
+                            (article.imageUrl.includes('.jpg') || 
+                             article.imageUrl.includes('.jpeg') || 
+                             article.imageUrl.includes('.png') || 
+                             article.imageUrl.includes('.webp'));
+        
+        if (isValidImage) {
+          console.log(`📸 Enviando imagem da notícia ${articleNumber}: ${article.imageUrl}`);
+          await this.client.sendImage(chatId, article.imageUrl, `noticia-${articleNumber}`, `📸 Imagem da Notícia ${articleNumber}`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          console.log(`⚠️ Imagem não suportada ignorada (SVG/logo): ${article.imageUrl}`);
+        }
       } catch (imgError) {
         console.error('Erro ao enviar imagem:', imgError);
       }
@@ -753,7 +766,8 @@ ${profileUrl}
 • "dev list" - Listar desenvolvedores
 • "dev images" - Testar modo imagem
 • "dev text" - Testar modo texto
-• "dev canvas" - Testar Canvas individualmente`);
+• "dev canvas" - Testar Canvas individualmente
+• "dev discover [termo]" - Testar descoberta automática de fontes`);
         break;
         
       case 'test':
@@ -800,7 +814,7 @@ Duis aute irure dolor in reprehenderit in voluptate.
       case 'update':
         await this.sendMessage(phone, `🔄 Atualizando cache de notícias...`);
         await tempNewsService.forceUpdate();
-        await this.sendMessage(phone, `✅ Cache atualizado! Use "l" para ver as novas notícias.`);
+        await this.sendMessage(phone, `✅ Cache atualizado! Use "l" para ver as 6 notícias.`);
         break;
 
       case 'images':
@@ -816,6 +830,12 @@ Duis aute irure dolor in reprehenderit in voluptate.
       case 'canvas':
         await this.sendMessage(phone, `🎨 *Testando Canvas Image Service*`);
         await this.testCanvasService(phone);
+        break;
+
+      case 'discover':
+        const searchTerm = parts[2] || 'tecnologia';
+        await this.sendMessage(phone, `🔍 *Testando descoberta automática para: ${searchTerm}*`);
+        await this.testSourceDiscovery(phone, searchTerm);
         break;
         
       default:
@@ -835,7 +855,7 @@ ${frontendUrl}
 
 💰 *Apenas R$ 5,00/mês*
 ✅ 2 dias grátis para testar
-📰 4 principais notícias diárias
+📰 6 principais notícias diárias
 🤖 Conteúdo reescrito por IA
 
 Digite "assinar" para mais informações.`;
@@ -848,7 +868,7 @@ Digite "assinar" para mais informações.`;
     
     const message = `🎯 *Newsletter WhatsApp - Assinatura*
 
-📰 Receba diariamente as 4 principais notícias do Brasil direto no seu WhatsApp!
+📰 Receba diariamente as 6 principais notícias do Brasil direto no seu WhatsApp!
 
 ✨ *Benefícios:*
 • Notícias selecionadas por IA
@@ -882,14 +902,27 @@ Após assinar, você receberá uma mensagem de confirmação aqui!`;
       
       await this.sendMessage(phone, '🚀 *Coletando notícias reais em formato IMAGEM...*');
       
-      const realNews = await tempNewsService.getLatestNews();
+      // Busca perfil do usuário para personalizar coleta
+      let userProfile = null;
+      if (this.db) {
+        try {
+          userProfile = await User.findByPhone(this.db, phone);
+          console.log(`👤 Perfil carregado para coleta personalizada: ${userProfile?.profileDescription ? 'SIM' : 'NÃO'}`);
+        } catch (error) {
+          console.log(`⚠️ Erro ao carregar perfil para coleta:`, error.message);
+        }
+      }
+      
+      // Força atualização do cache para comando manual "l"
+      await tempNewsService.forceUpdate(userProfile);
+      const realNews = tempNewsService.cachedNews;
       
       if (realNews.length === 0) {
         await this.sendMessage(phone, '⚠️ Nenhuma notícia disponível no momento. Usando notícias de exemplo...');
         const testNews = this.getTestNews();
         await this.sendNewsToUser(phone, testNews, true, this.db); // true = usar imagens
       } else {
-        const newsToSend = realNews.slice(0, 4);
+        const newsToSend = realNews.slice(0, 6);
         await this.sendNewsToUser(phone, newsToSend, true, this.db); // true = usar imagens
       }
       
@@ -914,23 +947,43 @@ Após assinar, você receberá uma mensagem de confirmação aqui!`;
       
       await this.sendMessage(phone, '🚀 *Coletando notícias reais em formato TEXTO...*');
       
-      const realNews = await tempNewsService.getLatestNews();
+      // Busca perfil do usuário para personalizar coleta
+      let userProfile = null;
+      if (this.db) {
+        try {
+          userProfile = await User.findByPhone(this.db, phone);
+          console.log(`👤 Perfil carregado para coleta personalizada: ${userProfile?.profileDescription ? 'SIM' : 'NÃO'}`);
+        } catch (error) {
+          console.log(`⚠️ Erro ao carregar perfil para coleta:`, error.message);
+        }
+      }
+      
+      // Força atualização do cache para comando manual "l"
+      await tempNewsService.forceUpdate(userProfile);
+      const realNews = tempNewsService.cachedNews;
       
       if (realNews.length === 0) {
         await this.sendMessage(phone, '⚠️ Nenhuma notícia disponível no momento. Usando notícias de exemplo...');
         const testNews = this.getTestNews();
         await this.sendNewsToUser(phone, testNews, false, this.db); // false = usar texto
       } else {
-        const newsToSend = realNews.slice(0, 4);
+        const newsToSend = realNews.slice(0, 6);
         
         // Envia introdução
         const now = new Date();
         const hora = now.getHours().toString().padStart(2, '0');
         const minuto = now.getMinutes().toString().padStart(2, '0');
         
-        const intro = `🌅 *Newsletter WhatsApp* - ${hora}:${minuto}
+        let intro = `🌅 *Newsletter WhatsApp* - ${hora}:${minuto}
 
-📰 Aqui estão as ${newsToSend.length} principais notícias de hoje, coletadas dos melhores portais brasileiros:
+📰 Aqui estão as ${newsToSend.length} principais notícias de hoje`;
+
+        // Adiciona nota sobre personalização se há perfil
+        if (userProfile && userProfile.profileDescription) {
+          intro += `, selecionadas especialmente para seu perfil`;
+        }
+        
+        intro += `:
 
 ${newsToSend.some(n => n.processed) ? '🤖 Processadas e reescritas pela IA Gemini' : '📄 Conteúdo original dos portais'}`;
 
@@ -1017,6 +1070,36 @@ ${newsToSend.some(n => n.processed) ? '🤖 Processadas e reescritas pela IA Gem
     }
   }
 
+  async testSourceDiscovery(phone, searchTerm) {
+    try {
+      await this.sendMessage(phone, `🔍 Iniciando busca por fontes de "${searchTerm}"...`);
+      
+      console.log(`🔍 Testando descoberta de fontes para: ${searchTerm}`);
+      const discoveredSources = await sourceDiscoveryService.discoverSources([searchTerm], 5);
+      
+      if (discoveredSources.length === 0) {
+        await this.sendMessage(phone, `❌ Nenhuma fonte encontrada para "${searchTerm}"`);
+        return;
+      }
+
+      let resultMessage = `✅ *${discoveredSources.length} fontes encontradas para "${searchTerm}":*\n\n`;
+      
+      discoveredSources.forEach((source, index) => {
+        resultMessage += `${index + 1}. *${source.name}*\n`;
+        resultMessage += `   📊 Peso: ${source.weight}/10\n`;
+        resultMessage += `   📰 Notícias recentes: ${source.recentCount}\n`;
+        resultMessage += `   🔗 ${source.url}\n\n`;
+      });
+
+      await this.sendMessage(phone, resultMessage);
+      await this.sendMessage(phone, `🎯 Use "dev update" para usar essas fontes na próxima coleta!`);
+      
+    } catch (error) {
+      console.error('Erro no teste de descoberta:', error);
+      await this.sendMessage(phone, `❌ Erro na descoberta: ${error.message}`);
+    }
+  }
+
   getTimeAgo(pubDate) {
     const now = new Date();
     const published = new Date(pubDate);
@@ -1050,7 +1133,7 @@ ${newsToSend.some(n => n.processed) ? '🤖 Processadas e reescritas pela IA Gem
     }
     
     message += `📰 *O que você vai receber:*
-• As 4 principais notícias do dia
+• As 6 principais notícias do dia
 • Conteúdo reescrito pela IA para fácil leitura
 • Entrega diária às 10:00 (personalizável)
 

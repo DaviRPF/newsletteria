@@ -1,74 +1,65 @@
 import newsService from './newsService.js';
 import aiService from './aiService.js';
 import tokenTracker from './tokenTracker.js';
+import categoryService from './categoryService.js';
 
 class TempNewsService {
   constructor() {
     this.cachedNews = [];
     this.lastUpdate = null;
+    this.lastUserProfile = null; // Rastreia o perfil usado no último cache
   }
 
-  async getLatestNews() {
-    // Atualiza cache a cada 30 minutos
+  async getLatestNews(userProfile = null) {
     const now = new Date();
-    if (!this.lastUpdate || (now - this.lastUpdate) > 30 * 60 * 1000) {
-      console.log('🔄 Atualizando cache de notícias...');
-      await this.updateNewsCache();
+    
+    // Verifica se precisa atualizar o cache
+    const cacheExpired = !this.lastUpdate || (now - this.lastUpdate) > 30 * 60 * 1000;
+    const profileChanged = JSON.stringify(userProfile?.profileDescription) !== JSON.stringify(this.lastUserProfile?.profileDescription);
+    
+    if (cacheExpired || profileChanged) {
+      if (cacheExpired) {
+        console.log('🔄 Atualizando cache de notícias (cache expirado)...');
+      } else if (profileChanged) {
+        console.log('🔄 Atualizando cache de notícias (perfil diferente)...');
+        console.log(`   Perfil anterior: ${this.lastUserProfile?.profileDescription || 'nenhum'}`);
+        console.log(`   Perfil atual: ${userProfile?.profileDescription || 'nenhum'}`);
+      }
+      
+      await this.updateNewsCache(userProfile);
+      this.lastUserProfile = userProfile;
+    } else {
+      console.log('✅ Usando cache existente (ainda válido)');
     }
 
     return this.cachedNews;
   }
 
-  async updateNewsCache() {
+  async updateNewsCache(userProfile = null) {
     try {
-      console.log('📰 Coletando notícias dos RSS feeds...');
+      console.log('📰 Coletando notícias personalizadas...');
       
-      // Coleta notícias sem banco de dados
-      const allNews = await newsService.fetchAllNews(null);
-      console.log(`✅ ${allNews.length} notícias coletadas`);
+      // NOVA ABORDAGEM: Usa o sistema otimizado de distribuição
+      const newsDistributionService = await import('./newsDistributionService.js');
+      const allNews = await newsDistributionService.default.getPersonalizedNews(userProfile);
+      
+      console.log(`✅ ${allNews.length} notícias personalizadas coletadas`);
 
       if (allNews.length === 0) {
         console.log('⚠️ Nenhuma notícia coletada, mantendo cache anterior');
         return;
       }
 
-      // Filtra notícias das últimas 24 horas
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      console.log(`⏰ Filtrando notícias mais recentes que: ${twentyFourHoursAgo.toLocaleString('pt-BR')}`);
+      // O newsDistributionService já retorna notícias filtradas e organizadas
+      console.log(`📅 ${allNews.length} notícias já filtradas e personalizadas`);
+
+      // Processa com sistema local para obter pontuação
+      console.log('🧠 Fazendo pontuação com sistema local...');
+      const localProcessed = this.processNewsLocally(allNews);
       
-      const recentNews = allNews.filter(news => {
-        if (!news.pubDate) {
-          console.log(`📰 Notícia sem data descartada [${news.source}]: ${news.title?.substring(0, 50)}...`);
-          return false; // Se não tem data, não inclui (mais restritivo)
-        }
-        const newsDate = new Date(news.pubDate);
-        const isValid = !isNaN(newsDate.getTime()) && newsDate > twentyFourHoursAgo;
-        if (!isValid) {
-          console.log(`🗓️ Notícia antiga descartada [${news.source}] (${newsDate.toLocaleString('pt-BR')}): ${news.title?.substring(0, 50)}...`);
-        } else {
-          console.log(`✅ Notícia aceita [${news.source}] (${newsDate.toLocaleString('pt-BR')}): ${news.title?.substring(0, 50)}...`);
-        }
-        return isValid;
-      });
+      console.log(`🎯 Processadas ${localProcessed.length} notícias personalizadas`);
 
-      console.log(`📅 ${recentNews.length} notícias das últimas 24 horas`);
-
-      // Remove duplicatas por similaridade de título
-      const uniqueNews = await this.removeDuplicates(recentNews);
-      console.log(`🔄 ${uniqueNews.length} notícias únicas após remoção de duplicatas`);
-
-      // PRIMEIRO: Processa com sistema local para obter pontuação inicial
-      console.log('🧠 Fazendo pontuação inicial com sistema local...');
-      const localProcessed = this.processNewsLocally(uniqueNews);
-      
-      // SEGUNDO: Ordena por relevância e pega apenas as TOP 4
-      const top4News = localProcessed
-        .sort((a, b) => b.relevanceScore - a.relevanceScore)
-        .slice(0, 4);
-      
-      console.log(`🎯 Selecionadas as TOP 4 notícias para processamento com IA`);
-
-      // TERCEIRO: Só agora processa as TOP 4 com IA se disponível
+      // Só processa com IA se disponível (refinamento opcional)
       let finalNews;
       try {
         // Verifica se a API key está configurada e não é a padrão
@@ -77,16 +68,16 @@ class TempNewsService {
                            process.env.GEMINI_API_KEY.length > 30;
         
         if (hasValidKey) {
-          console.log('🤖 Refinando TOP 4 notícias com IA Gemini...');
-          finalNews = await this.processWithAI(top4News);
+          console.log('🤖 Refinando notícias com IA Gemini (opcional)...');
+          finalNews = await this.processWithAI(localProcessed);
           console.log('✅ Refinamento com IA bem-sucedido');
         } else {
           console.log('⚠️ API key Gemini inválida, usando processamento local');
-          finalNews = top4News;
+          finalNews = localProcessed;
         }
       } catch (error) {
         console.log('❌ Erro na IA, mantendo processamento local:', error.message);
-        finalNews = top4News;
+        finalNews = localProcessed;
       }
       
       this.cachedNews = finalNews;
@@ -330,13 +321,7 @@ class TempNewsService {
       else if (item.source?.includes('Opera Mundi')) score += 6;
       else if (item.source?.includes('UOL')) score += 5;
       
-      // Pontuação por recência (reduzida)
-      const hoursAgo = (new Date() - new Date(item.pubDate)) / (1000 * 60 * 60);
-      if (hoursAgo < 1) score += 15;
-      else if (hoursAgo < 3) score += 12;
-      else if (hoursAgo < 6) score += 8;
-      else if (hoursAgo < 12) score += 5;
-      else score += 2;
+      // Sem bonificação por recência - todas as notícias das últimas 24h têm peso igual
       
       // Bonus menor para conteúdo
       if (content.length > 300) score += 5;
@@ -388,9 +373,10 @@ class TempNewsService {
   }
 
   // Método para forçar atualização
-  async forceUpdate() {
+  async forceUpdate(userProfile = null) {
     this.lastUpdate = null;
-    await this.getLatestNews();
+    this.lastUserProfile = null; // Força re-avaliação do perfil
+    await this.getLatestNews(userProfile);
   }
 }
 

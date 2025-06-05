@@ -218,7 +218,7 @@ Responda apenas "SIM" se forem sobre o mesmo assunto principal, ou "NAO" se fore
       ).join('\n\n---\n\n');
 
       const prompt = `
-Com base nestas 4 notícias principais do dia, crie uma mensagem de abertura envolvente para o newsletter:
+Com base nestas ${topNews.length} notícias principais do dia, crie uma mensagem de abertura envolvente para o newsletter:
 
 ${newsTexts}
 
@@ -390,6 +390,101 @@ Retorne APENAS o número da pontuação (0-100), sem explicações.
     }
   }
 
+  async analyzeUserInterests(userProfile) {
+    try {
+      const model = this.initializeAI();
+      if (!model) throw new Error('AI não inicializada');
+
+      if (!userProfile || !userProfile.trim()) {
+        return ['politica']; // Padrão: só política
+      }
+
+      const prompt = `
+Analise este perfil de usuário e identifique quais categorias de notícias interessam a ele:
+
+PERFIL: ${userProfile}
+
+CATEGORIAS DISPONÍVEIS:
+- politica (sempre incluir como base)
+- economia
+- tecnologia
+- esporte
+- futebol
+- saude
+- educacao
+- cultura
+- entretenimento
+- meio-ambiente
+- seguranca
+- infraestrutura
+- justica
+- religiao
+
+REGRAS:
+1. SEMPRE inclua "politica" (é obrigatório)
+2. Máximo 4 categorias no total
+3. Se não identificar interesses específicos, retorne apenas ["politica"]
+4. Se identificar apenas 1 interesse, retorne ["politica", "categoria_identificada"]
+5. Priorize os interesses mais claros do perfil
+
+EXEMPLOS:
+- "Sou desenvolvedor de software" → ["politica", "tecnologia"]
+- "Trabalho com vendas e gosto de futebol" → ["politica", "economia", "futebol"]  
+- "Professor de matemática" → ["politica", "educacao"]
+- "Médico veterinário" → ["politica", "saude"]
+- "Não tenho preferências" → ["politica"]
+
+Responda APENAS com um array JSON, exemplo: ["politica", "tecnologia"]
+`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const responseText = response.text().trim();
+
+      // Rastreia tokens
+      tokenTracker.addEstimatedUsage('ANALYZE_INTERESTS', prompt, responseText, 'Profile analysis');
+
+      // Parse da resposta (limpa markdown se houver)
+      try {
+        let cleanResponse = responseText;
+        
+        // Remove markdown code blocks se houver
+        if (cleanResponse.includes('```')) {
+          cleanResponse = cleanResponse.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+        }
+        
+        // Remove quebras de linha e espaços extras
+        cleanResponse = cleanResponse.trim();
+        
+        const categories = JSON.parse(cleanResponse);
+        
+        // Validação
+        if (!Array.isArray(categories) || categories.length === 0) {
+          return ['politica'];
+        }
+
+        // Garante que política está incluída
+        if (!categories.includes('politica')) {
+          categories.unshift('politica');
+        }
+
+        // Limita a 4 categorias
+        const validCategories = categories.slice(0, 4);
+        
+        console.log(`🎯 Categorias identificadas: ${validCategories.join(', ')}`);
+        return validCategories;
+
+      } catch (parseError) {
+        console.log(`⚠️ Erro ao fazer parse da resposta: ${responseText}`);
+        return ['politica'];
+      }
+
+    } catch (error) {
+      console.error('Erro ao analisar interesses do usuário:', error);
+      return ['politica'];
+    }
+  }
+
   async generatePersonalizedImpact(newsTitle, newsContent, userProfile) {
     try {
       const model = this.initializeAI();
@@ -411,14 +506,15 @@ Conteúdo: ${newsContent.substring(0, 800)}...
 
 INSTRUÇÕES:
 1. Escreva uma análise personalizada de 2-3 frases
-2. Foque especificamente em como isso afeta a vida/profissão/interesses desta pessoa
-3. Use uma linguagem direta e relevante
-4. Seja específico, não genérico
-5. Se a notícia não tem relação clara com o perfil, diga "Esta notícia não tem impacto direto no seu perfil atual."
+2. SEMPRE encontre uma conexão com o perfil do usuário, mesmo que indireta
+3. Considere aspectos como: ambiente de negócios, tendências tecnológicas, oportunidades de carreira, contexto social
+4. Use uma linguagem direta e relevante
+5. Seja criativo para encontrar conexões relevantes
 
-EXEMPLOS DE BOA ANÁLISE:
-- Para estudante de medicina: "Como futuro médico, essa mudança na regulamentação do SUS pode afetar suas oportunidades de residência em hospitais públicos."
-- Para empresário: "Essa nova política fiscal pode aumentar seus custos operacionais em cerca de 3-5% se sua empresa se enquadra no Simples Nacional."
+EXEMPLOS DE ANÁLISE CRIATIVA:
+- Para desenvolvedor sobre política: "Como desenvolvedor, mudanças políticas podem afetar regulamentações de dados, políticas de inovação e ambiente de startups."
+- Para pessoa interessada em tecnologia sobre economia: "Flutuações econômicas impactam investimentos em tecnologia e podem criar oportunidades para soluções inovadoras."
+- Para programador sobre questões sociais: "Como pessoa da área tech, você pode considerar como a tecnologia pode ajudar a resolver problemas sociais similares."
 
 Escreva APENAS a análise, sem títulos ou formatação extra:
 `;
@@ -431,8 +527,16 @@ Escreva APENAS a análise, sem títulos ou formatação extra:
       tokenTracker.addEstimatedUsage('PERSONALIZED_IMPACT', prompt, analysis, `"${newsTitle.substring(0, 30)}..."`);
 
       // Valida se é uma resposta útil
-      if (analysis.length < 20 || analysis.toLowerCase().includes('não posso') || analysis.toLowerCase().includes('não é possível')) {
+      if (analysis.length < 15 || 
+          analysis.toLowerCase().includes('não posso') || 
+          analysis.toLowerCase().includes('não é possível')) {
+        console.log(`⚠️ DEBUG: Análise rejeitada: "${analysis}"`);
         return null;
+      }
+      
+      // Se a IA disser que não tem impacto direto, reformula para uma resposta mais útil
+      if (analysis.toLowerCase().includes('não tem impacto direto')) {
+        return "Como desenvolvedor, você pode acompanhar este tema para entender melhor o cenário político e tecnológico do país, que pode influenciar o ambiente de negócios e inovação.";
       }
 
       return analysis;

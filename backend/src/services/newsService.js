@@ -26,11 +26,51 @@ class NewsService {
     ];
   }
 
-  async fetchAllNews(db = null) {
+  // Método para coletar notícias de uma fonte específica
+  async fetchNewsFromSource(source) {
+    try {
+      console.log(`🔍 Coletando de ${source.name}...`);
+      const feed = await this.parser.parseURL(source.url);
+      
+      const news = [];
+      for (const item of feed.items) {
+        const newsHash = this.generateHash(item.title, item.link);
+        
+        try {
+          const newsItem = {
+            title: item.title,
+            originalContent: item.contentSnippet || item.summary || item.description || '',
+            source: source.name,
+            originalUrl: item.link,
+            pubDate: item.pubDate ? new Date(item.pubDate) : new Date(),
+            hash: newsHash,
+            imageUrl: await this.extractImageFromItem(item)
+          };
+
+          news.push(newsItem);
+        } catch (itemError) {
+          console.log(`⚠️ Erro ao processar item de ${source.name}:`, itemError.message);
+        }
+      }
+      
+      console.log(`   ✅ ${news.length} notícias coletadas de ${source.name}`);
+      return news;
+      
+    } catch (error) {
+      console.log(`❌ Erro ao coletar de ${source.name}:`, error.message);
+      return [];
+    }
+  }
+
+  async fetchAllNews(db = null, customSources = null) {
     console.log('Iniciando coleta de notícias...');
     const allNews = [];
+    
+    // Usa fontes personalizadas se fornecidas, senão usa as padrão
+    const sourcesToUse = customSources || this.sources;
+    console.log(`📊 Usando ${sourcesToUse.length} fontes: ${sourcesToUse.map(s => s.name || s.url).join(', ')}`);
 
-    for (const source of this.sources) {
+    for (const source of sourcesToUse) {
       try {
         console.log(`🔍 Coletando notícias de ${source.name}...`);
         console.log(`   URL: ${source.url}`);

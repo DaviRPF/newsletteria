@@ -31,7 +31,8 @@
       "Bash(curl:*)",
       "Bash(sudo systemctl start:*)",
       "Bash(mongod:*)",
-      "Bash(docker:*)"
+      "Bash(docker:*)",
+      "Bash(npm run test-sources:*)"
     ],
     "deny": []
   }
