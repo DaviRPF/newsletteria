@@ -5,6 +5,7 @@ import tempNewsService from './tempNewsService.js';
 import imageService from './imageService.js';
 import canvasImageService from './canvasImageService.js';
 import aiService from './aiService.js';
+import tokenTracker from './tokenTracker.js';
 
 class WhatsAppService {
   constructor() {
@@ -875,6 +876,10 @@ Após assinar, você receberá uma mensagem de confirmação aqui!`;
 
   async triggerNewsletterWithImages(phone) {
     try {
+      // Reset completo para contar TUDO desde o início
+      tokenTracker.reset();
+      console.log('🔥 Iniciando rastreamento COMPLETO de tokens (incluindo scores)...');
+      
       await this.sendMessage(phone, '🚀 *Coletando notícias reais em formato IMAGEM...*');
       
       const realNews = await tempNewsService.getLatestNews();
@@ -890,6 +895,10 @@ Após assinar, você receberá uma mensagem de confirmação aqui!`;
       
       console.log(`✅ Newsletter com IMAGENS enviada para ${phone}`);
       
+      // Mostra resumo COMPLETO incluindo coleta, scores, reescrita e análises personalizadas
+      console.log('\n🔥 ===== TOKENS TOTAIS DO PROCESSO COMPLETO =====');
+      tokenTracker.getSessionSummary();
+      
     } catch (error) {
       console.error('Erro ao enviar newsletter com imagens:', error);
       await this.sendMessage(phone, '❌ Erro ao gerar imagens. Enviando em modo texto...');
@@ -899,6 +908,10 @@ Após assinar, você receberá uma mensagem de confirmação aqui!`;
 
   async triggerNewsletterWithText(phone) {
     try {
+      // Reset completo para contar TUDO desde o início
+      tokenTracker.reset();
+      console.log('🔥 Iniciando rastreamento COMPLETO de tokens (incluindo scores)...');
+      
       await this.sendMessage(phone, '🚀 *Coletando notícias reais em formato TEXTO...*');
       
       const realNews = await tempNewsService.getLatestNews();
@@ -929,6 +942,10 @@ ${newsToSend.some(n => n.processed) ? '🤖 Processadas e reescritas pela IA Gem
       }
       
       console.log(`✅ Newsletter com TEXTO enviada para ${phone}`);
+      
+      // Mostra resumo COMPLETO incluindo coleta, scores, reescrita e análises personalizadas
+      console.log('\n🔥 ===== TOKENS TOTAIS DO PROCESSO COMPLETO =====');
+      tokenTracker.getSessionSummary();
       
     } catch (error) {
       console.error('Erro ao enviar newsletter em texto:', error);

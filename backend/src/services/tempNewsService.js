@@ -1,5 +1,6 @@
 import newsService from './newsService.js';
 import aiService from './aiService.js';
+import tokenTracker from './tokenTracker.js';
 
 class TempNewsService {
   constructor() {
@@ -277,71 +278,85 @@ class TempNewsService {
   // Sistema de pontuação local (fallback quando IA não funciona)
   processNewsLocally(news) {
     const processedNews = news.map((item, index) => {
-      let score = 60; // Score base mais alto
+      let score = 30; // Score base menor
       
-      // Palavras-chave que aumentam relevância (peso alto)
+      // Palavras-chave que aumentam relevância (peso moderado)
       const highRelevanceKeywords = [
         'brasil', 'lula', 'bolsonaro', 'governo', 'política', 'economia', 
         'eleição', 'supremo', 'stf', 'congresso', 'senado', 'deputado',
-        'ministro', 'presidente', 'covid', 'pandemia', 'vacina',
-        'petrobras', 'banco central', 'inflação', 'pib', 'real',
-        'amazônia', 'meio ambiente', 'desmatamento', 'indígena',
-        'pgr', 'prisão', 'zambelli', 'portugal', 'brasileiros',
-        'milhões', 'combate', 'cristina kirchner', 'argentino'
+        'ministro', 'presidente', 'petrobras', 'banco central', 'inflação', 'pib'
       ];
       
       const mediumRelevanceKeywords = [
-        'rio', 'são paulo', 'salvador', 'belo horizonte', 'brasília',
-        'saúde', 'educação', 'violência', 'segurança', 'corrupção',
-        'investigação', 'operação', 'polícia federal', 'justiça',
-        'onu', 'internacional', 'guerra', 'sudão', 'enchentes'
+        'rio', 'são paulo', 'brasília', 'saúde', 'educação', 'violência', 
+        'segurança', 'corrupção', 'investigação', 'operação', 'polícia federal',
+        'justiça', 'onu', 'internacional'
+      ];
+      
+      const lowRelevanceKeywords = [
+        'esporte', 'futebol', 'música', 'cultura', 'festival', 'celebridade',
+        'entretenimento', 'cinema', 'tv', 'novela'
       ];
       
       const title = item.title?.toLowerCase() || '';
       const content = item.originalContent?.toLowerCase() || '';
       const combined = title + ' ' + content;
       
-      // Pontuação por palavras-chave (aumentei os valores)
+      // Pontuação por palavras-chave (valores reduzidos)
+      let keywordMatches = 0;
       highRelevanceKeywords.forEach(keyword => {
         if (combined.includes(keyword)) {
-          score += title.includes(keyword) ? 25 : 15; // Mais pontos se estiver no título
+          score += title.includes(keyword) ? 12 : 8;
+          keywordMatches++;
         }
       });
       
       mediumRelevanceKeywords.forEach(keyword => {
         if (combined.includes(keyword)) {
-          score += title.includes(keyword) ? 12 : 8;
+          score += title.includes(keyword) ? 6 : 4;
+          keywordMatches++;
         }
       });
       
-      // Pontuação por fonte (aumentei)
-      if (item.source?.includes('Opera Mundi')) score += 15;
-      if (item.source?.includes('Agência Brasil')) score += 20;
-      if (item.source?.includes('UOL')) score += 12;
+      // Penaliza notícias de baixa relevância
+      lowRelevanceKeywords.forEach(keyword => {
+        if (combined.includes(keyword)) {
+          score -= 8;
+        }
+      });
       
-      // Pontuação por recência (mais recente = mais pontos)
+      // Bonificação por fonte (reduzida)
+      if (item.source?.includes('Agência Brasil')) score += 8;
+      else if (item.source?.includes('Opera Mundi')) score += 6;
+      else if (item.source?.includes('UOL')) score += 5;
+      
+      // Pontuação por recência (reduzida)
       const hoursAgo = (new Date() - new Date(item.pubDate)) / (1000 * 60 * 60);
-      if (hoursAgo < 1) score += 30;
-      else if (hoursAgo < 3) score += 25;
-      else if (hoursAgo < 6) score += 20;
-      else if (hoursAgo < 12) score += 15;
-      else if (hoursAgo < 24) score += 10;
+      if (hoursAgo < 1) score += 15;
+      else if (hoursAgo < 3) score += 12;
+      else if (hoursAgo < 6) score += 8;
+      else if (hoursAgo < 12) score += 5;
+      else score += 2;
       
-      // Bonus para notícias com mais conteúdo
-      if (content.length > 200) score += 10;
-      if (content.length > 500) score += 15;
+      // Bonus menor para conteúdo
+      if (content.length > 300) score += 5;
+      if (content.length > 600) score += 5;
       
-      // Desconta pontos para títulos muito curtos ou muito longos
-      if (title.length < 20) score -= 15;
-      if (title.length > 200) score -= 10;
+      // Penaliza títulos problemáticos
+      if (title.length < 15) score -= 10;
+      if (title.length > 150) score -= 5;
+      if (title.includes('...')) score -= 3; // Títulos truncados
       
-      // Adiciona variação baseada na posição para evitar empates
-      score += Math.random() * 5;
+      // Se não tem palavras-chave relevantes, reduz muito o score
+      if (keywordMatches === 0) score -= 20;
       
-      // Garante score entre 10 e 100
-      score = Math.max(10, Math.min(100, score));
+      // Adiciona variação mínima para evitar empates
+      score += Math.random() * 3;
       
-      console.log(`📊 [${item.source}] "${title.substring(0, 40)}..." - Score: ${Math.round(score)}`);
+      // Garante score entre 15 e 95 (range mais realista)
+      score = Math.max(15, Math.min(95, score));
+      
+      console.log(`📊 [${item.source}] "${title.substring(0, 40)}..." - Score: ${Math.round(score)} (matches: ${keywordMatches})`);
       
       return {
         ...item,

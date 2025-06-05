@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { News } from '../models/News.js';
+import tokenTracker from './tokenTracker.js';
 
 class AIService {
   constructor() {
@@ -22,24 +23,41 @@ class AIService {
       if (!model) throw new Error('AI não inicializada');
       
       const prompt = `
-Analise APENAS este TÍTULO de notícia e dê uma pontuação de relevância de 0 a 100:
+Analise este título de notícia e dê uma pontuação realista de 0 a 100:
 
-1. Impacto social/político (0-30 pontos)
-2. Interesse público geral (0-30 pontos) 
-3. Atualidade e urgência (0-25 pontos)
-4. Credibilidade da fonte (0-15 pontos)
+CRITÉRIOS:
+- Impacto político/social nacional (0-25 pontos)
+- Interesse do público brasileiro (0-25 pontos)  
+- Urgência/novidade (0-25 pontos)
+- Relevância jornalística (0-25 pontos)
 
-Título: ${title}
-Fonte: ${source}
+TÍTULO: "${title}"
+FONTE: ${source}
 
-Retorne APENAS o número da pontuação (0-100), sem explicações.
-`;
+IMPORTANTE: 
+- Use toda a escala de 0-100
+- Seja crítico e realista
+- Notícias locais/específicas = pontuação menor
+- Notícias internacionais irrelevantes = pontuação baixa
+- Apenas eventos muito importantes = 80-100 pontos
+
+Responda APENAS com um número de 0 a 100, nada mais:`;
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      const score = parseInt(response.text().trim());
+      const responseText = response.text().trim();
       
-      return isNaN(score) ? 50 : Math.max(0, Math.min(100, score));
+      // Rastreia tokens
+      tokenTracker.addEstimatedUsage('SCORE_NEWS', prompt, responseText, `"${title.substring(0, 30)}..."`);
+      
+      console.log(`🤖 DEBUG Score: "${title}" -> Resposta: "${responseText}"`);
+      
+      const score = parseInt(responseText.replace(/[^0-9]/g, ''));
+      const finalScore = isNaN(score) ? 50 : Math.max(0, Math.min(100, score));
+      
+      console.log(`📊 DEBUG: Score final: ${finalScore}`);
+      
+      return finalScore;
     } catch (error) {
       console.error('Erro ao calcular relevância:', error);
       return 50;
@@ -88,8 +106,12 @@ IMPORTANTE: Use as informações dos artigos similares para enriquecer a notíci
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
+      const responseText = response.text().trim();
       
-      return response.text().trim();
+      // Rastreia tokens
+      tokenTracker.addEstimatedUsage('REWRITE_ARTICLE', prompt, responseText, `"${title.substring(0, 30)}..."`);
+      
+      return responseText;
     } catch (error) {
       console.error('Erro ao reescrever artigo:', error);
       return content.substring(0, 500) + '...';
@@ -355,7 +377,11 @@ Retorne APENAS o número da pontuação (0-100), sem explicações.
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      const score = parseInt(response.text().trim());
+      const responseText = response.text().trim();
+      const score = parseInt(responseText);
+      
+      // Rastreia tokens
+      tokenTracker.addEstimatedUsage('ADVANCED_SCORE', prompt, responseText, `"${title.substring(0, 30)}..."`);
       
       return isNaN(score) ? 50 : Math.max(0, Math.min(100, score));
     } catch (error) {
@@ -400,6 +426,9 @@ Escreva APENAS a análise, sem títulos ou formatação extra:
       const result = await model.generateContent(prompt);
       const response = await result.response;
       const analysis = response.text().trim();
+
+      // Rastreia tokens
+      tokenTracker.addEstimatedUsage('PERSONALIZED_IMPACT', prompt, analysis, `"${newsTitle.substring(0, 30)}..."`);
 
       // Valida se é uma resposta útil
       if (analysis.length < 20 || analysis.toLowerCase().includes('não posso') || analysis.toLowerCase().includes('não é possível')) {
