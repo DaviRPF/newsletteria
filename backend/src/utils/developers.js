@@ -29,18 +29,24 @@ class DeveloperManager {
     // Remove @c.us, +, e qualquer formatação
     const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
     
-    // Logs removidos para produção
+    console.log(`🔍 Verificando se ${cleanPhone} é desenvolvedor...`);
+    console.log(`📋 Desenvolvedores registrados: ${this.developers.join(', ')}`);
     
-    return this.developers.some(devNumber => {
+    const isMatch = this.developers.some(devNumber => {
       const cleanDevNumber = devNumber.replace(/\D/g, '');
-      const isMatch = cleanPhone === cleanDevNumber || 
-                     cleanPhone.endsWith(cleanDevNumber) ||
-                     cleanDevNumber.endsWith(cleanPhone);
+      const match = cleanPhone === cleanDevNumber || 
+                   cleanPhone.endsWith(cleanDevNumber) ||
+                   cleanDevNumber.endsWith(cleanPhone);
       
-      // Match encontrado
+      if (match) {
+        console.log(`✅ Match encontrado: ${cleanPhone} ↔ ${cleanDevNumber}`);
+      }
       
-      return isMatch;
+      return match;
     });
+    
+    console.log(`🎯 Resultado: ${isMatch ? 'É DESENVOLVEDOR' : 'NÃO é desenvolvedor'}`);
+    return isMatch;
   }
 
   addDeveloper(phone) {

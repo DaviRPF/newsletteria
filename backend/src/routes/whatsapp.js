@@ -247,6 +247,32 @@ export default async function whatsappRoutes(fastify, options) {
     }
   });
 
+  fastify.post('/force-newsletter/:phone', async (request, reply) => {
+    try {
+      const { phone } = request.params;
+
+      if (!whatsappService.isClientConnected()) {
+        return reply.status(400).send({
+          error: 'WhatsApp não está conectado'
+        });
+      }
+
+      // Dispara a newsletter diretamente
+      await whatsappService.triggerNewsletterNow(phone);
+      
+      return reply.send({
+        message: 'Newsletter sendo processada e enviada',
+        phone: phone
+      });
+
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.status(500).send({
+        error: 'Erro ao forçar newsletter'
+      });
+    }
+  });
+
   fastify.post('/broadcast', async (request, reply) => {
     try {
       const { message, targetAudience = 'all' } = request.body;

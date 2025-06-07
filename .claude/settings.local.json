@@ -32,7 +32,11 @@
       "Bash(sudo systemctl start:*)",
       "Bash(mongod:*)",
       "Bash(docker:*)",
-      "Bash(npm run test-sources:*)"
+      "Bash(npm run test-sources:*)",
+      "Bash(timeout:*)",
+      "Bash(npm test)",
+      "WebFetch(domain:github.com)",
+      "Bash(true)"
     ],
     "deny": []
   }

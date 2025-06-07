@@ -8,6 +8,9 @@ class TempNewsService {
     this.cachedNews = [];
     this.lastUpdate = null;
     this.lastUserProfile = null; // Rastreia o perfil usado no último cache
+    
+    // FORÇA LIMPEZA DO CACHE (ALGORITMO MELHORADO)
+    this.lastUpdate = null;
   }
 
   async getLatestNews(userProfile = null) {
@@ -39,19 +42,19 @@ class TempNewsService {
     try {
       console.log('📰 Coletando notícias personalizadas...');
       
-      // NOVA ABORDAGEM: Usa o sistema otimizado de distribuição
-      const newsDistributionService = await import('./newsDistributionService.js');
-      const allNews = await newsDistributionService.default.getPersonalizedNews(userProfile);
+      // NOVA ABORDAGEM: Sistema categoria-dirigido (IA identifica categorias → busca nas fontes específicas)
+      const categoryDrivenNewsService = await import('./categoryDrivenNewsService.js');
+      const allNews = await categoryDrivenNewsService.default.getPersonalizedNews(userProfile);
       
-      console.log(`✅ ${allNews.length} notícias personalizadas coletadas`);
+      console.log(`✅ ${allNews.length} notícias categoria-dirigidas coletadas`);
 
       if (allNews.length === 0) {
         console.log('⚠️ Nenhuma notícia coletada, mantendo cache anterior');
         return;
       }
 
-      // O newsDistributionService já retorna notícias filtradas e organizadas
-      console.log(`📅 ${allNews.length} notícias já filtradas e personalizadas`);
+      // O categoryDrivenNewsService já retorna notícias filtradas e organizadas por categoria
+      console.log(`📅 ${allNews.length} notícias já filtradas por categoria e personalizadas`);
 
       // Processa com sistema local para obter pontuação
       console.log('🧠 Fazendo pontuação com sistema local...');

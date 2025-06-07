@@ -25,16 +25,16 @@ async function createUserDavi() {
     const usersCollection = db.collection('users');
     
     const userData = {
-      phone: '558481843434',
-      email: 'davirdr344@gmail.com',
-      name: 'Davi',
+      phone: '558496059942',
+      email: 'erisvanda@gmail.com',
+      name: 'Erisvanda',
       subscriptionStatus: 'active',
       subscriptionId: null,
       trialStartDate: new Date(),
       trialEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 dias de acesso
-      deliveryTime: '10:00',
+      deliveryTime: '22:05',
       timezone: 'America/Sao_Paulo',
-      profileDescription: 'Desenvolvedor interessado em tecnologia, programação e inovação',
+      profileDescription: 'Mulher na casa dos 50 anos trabalha no tribunal federal e tem interesse em assuntos internacionais',
       createdAt: new Date(),
       updatedAt: new Date(),
       isAdmin: true,

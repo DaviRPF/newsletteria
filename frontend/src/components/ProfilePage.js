@@ -142,190 +142,221 @@ const ProfilePage = () => {
     if (subscription?.subscriptionStatus === 'active') {
       if (subscription.isInTrial) {
         return (
-          <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
-            Trial Ativo ({subscription.daysLeft} dias restantes)
+          <span className="status-badge status-trial">
+            🎁 Trial Ativo ({subscription.daysLeft} dias restantes)
           </span>
         );
       }
       return (
-        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
-          Assinatura Ativa
+        <span className="status-badge status-active">
+          ✅ Assinatura Ativa
         </span>
       );
     } else if (subscription?.subscriptionStatus === 'cancelled') {
       return (
-        <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-semibold">
-          Assinatura Cancelada
+        <span className="status-badge bg-red-100 text-red-800">
+          ❌ Assinatura Cancelada
         </span>
       );
     } else if (subscription?.subscriptionStatus === 'demo') {
       return (
-        <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
-          Modo Demonstração
+        <span className="status-badge status-trial">
+          🚀 Modo Demonstração
         </span>
       );
     }
     return (
-      <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm font-semibold">
-        Não Cadastrado
+      <span className="status-badge status-inactive">
+        ⚪ Não Cadastrado
       </span>
     );
   };
 
   return (
-    <div className="min-h-screen py-12">
-      <div className="container">
-        <div className="card max-w-3xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4">👤</div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              Meu Perfil
-            </h1>
-            <p className="text-gray-600">Newsletter WhatsApp</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="container mx-auto px-4 py-12">
+        {/* Header Centralizado */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-600 rounded-full mb-6">
+            <span className="text-3xl text-white">👤</span>
           </div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-3">
+            Meu Perfil
+          </h1>
+          <p className="text-xl text-gray-600 max-w-md mx-auto">
+            Gerencie sua conta da Newsletter WhatsApp
+          </p>
+        </div>
 
-          {/* Status */}
-          <div className="bg-gray-50 p-6 rounded-lg mb-8 text-center">
-            <h2 className="text-xl font-semibold mb-3">Status da Assinatura</h2>
-            {getStatusBadge()}
-          </div>
-
-          {/* Informações Pessoais */}
-          <div className="mb-8">
-            <h3 className="text-xl font-semibold mb-4">Informações Pessoais</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between py-3 border-b">
-                <span className="text-gray-600">WhatsApp:</span>
-                <span className="font-semibold">{formatPhone(phone)}</span>
+        {/* Conteúdo Principal Centralizado */}
+        <div className="max-w-6xl mx-auto">
+          <div className="grid lg:grid-cols-3 gap-8">
+            
+            {/* Coluna 1: Status e Informações */}
+            <div className="space-y-6">
+              {/* Status Card */}
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <div className="flex items-center mb-4">
+                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                    <span className="text-green-600 text-lg">📊</span>
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900">Status da Conta</h2>
+                </div>
+                <div className="text-center py-4">
+                  {getStatusBadge()}
+                  {subscription?.subscriptionStatus === 'active' && subscription?.isInTrial && (
+                    <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                      <p className="text-sm text-amber-800 font-medium">
+                        Trial termina em <strong>{subscription.daysLeft} dias</strong>
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-              {profile?.name && (
-                <div className="flex justify-between py-3 border-b">
-                  <span className="text-gray-600">Nome:</span>
-                  <span className="font-semibold">{profile.name}</span>
+
+              {/* Informações Pessoais */}
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <div className="flex items-center mb-4">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                    <span className="text-blue-600 text-lg">ℹ️</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900">Dados da Conta</h3>
                 </div>
-              )}
-              {profile?.email && (
-                <div className="flex justify-between py-3 border-b">
-                  <span className="text-gray-600">Email:</span>
-                  <span className="font-semibold">{profile.email}</span>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="font-medium text-gray-700">WhatsApp:</span>
+                    <span className="text-gray-900 font-semibold">{formatPhone(phone)}</span>
+                  </div>
+                  {profile?.name && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="font-medium text-gray-700">Nome:</span>
+                      <span className="text-gray-900 font-semibold">{profile.name}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="font-medium text-gray-700">Horário:</span>
+                    <span className="text-gray-900 font-semibold">{profile?.deliveryTime || '10:00'}</span>
+                  </div>
                 </div>
-              )}
-              <div className="flex justify-between py-3 border-b">
-                <span className="text-gray-600">Horário de Entrega:</span>
-                <span className="font-semibold">{profile?.deliveryTime || '10:00'}</span>
+              </div>
+
+              {/* Comandos WhatsApp */}
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <div className="flex items-center mb-4">
+                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                    <span className="text-green-600 text-lg">📱</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900">Comandos</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="p-3 bg-gray-50 rounded-lg border-l-4 border-green-500">
+                    <code className="text-green-700 font-semibold">"status"</code>
+                    <p className="text-sm text-gray-600 mt-1">Ver informações do perfil</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+                    <code className="text-blue-700 font-semibold">"configurar horario"</code>
+                    <p className="text-sm text-gray-600 mt-1">Alterar horário das notícias</p>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Perfil Personalizado */}
-          <div className="mb-8">
-            <h3 className="text-xl font-semibold mb-4">🎯 Perfil Personalizado</h3>
-            <p className="text-gray-600 mb-4">
-              Conte um pouco sobre você para receber análises personalizadas sobre como as notícias podem te afetar:
-            </p>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Descrição do seu perfil
-                </label>
-                <textarea
-                  value={profileDescription}
-                  onChange={(e) => setProfileDescription(e.target.value)}
-                  placeholder="Ex: Tenho 28 anos, sou médico recém-formado trabalhando no SUS. Me interesso por políticas de saúde pública e como elas afetam minha profissão..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
-                  rows="4"
-                  maxLength="500"
-                />
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-sm text-gray-500">
-                    {profileDescription.length}/500 caracteres
-                  </span>
-                  <button
-                    onClick={handleSaveProfile}
-                    disabled={isSaving}
-                    className="btn btn-primary px-6"
+            {/* Coluna 2-3: Personalização */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+                <div className="text-center mb-8">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
+                    <span className="text-2xl">🎯</span>
+                  </div>
+                  <h2 className="text-3xl font-bold text-gray-900 mb-3">Personalização IA</h2>
+                  <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                    Conte sobre você para receber análises personalizadas de como cada notícia pode impactar sua vida
+                  </p>
+                </div>
+                
+                <div className="max-w-3xl mx-auto">
+                  <div className="mb-8">
+                    <label className="block text-lg font-semibold text-gray-800 mb-4">
+                      Descreva seu perfil profissional e interesses
+                    </label>
+                    <textarea
+                      value={profileDescription}
+                      onChange={(e) => setProfileDescription(e.target.value)}
+                      placeholder="Ex: Sou médico cardiologista de 35 anos, trabalho em hospital público e me interesso por políticas de saúde, tecnologia médica e investimentos..."
+                      className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 resize-none text-lg leading-relaxed"
+                      rows="6"
+                      maxLength="500"
+                    />
+                    <div className="flex justify-between items-center mt-4">
+                      <span className="text-sm text-gray-500 font-medium">
+                        {profileDescription.length}/500 caracteres
+                      </span>
+                      <button
+                        onClick={handleSaveProfile}
+                        disabled={isSaving}
+                        className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all duration-200 font-semibold text-lg shadow-lg hover:shadow-xl"
+                      >
+                        {isSaving ? '💾 Salvando...' : '💾 Salvar Perfil'}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {saveMessage && (
+                    <div className={`p-6 rounded-xl mb-8 text-center ${
+                      saveMessage.includes('✅') 
+                        ? 'bg-green-50 text-green-800 border-2 border-green-200' 
+                        : 'bg-red-50 text-red-800 border-2 border-red-200'
+                    }`}>
+                      <p className="text-lg font-semibold">{saveMessage}</p>
+                    </div>
+                  )}
+                  
+                  {/* Como funciona */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border-2 border-blue-100">
+                    <div className="text-center mb-4">
+                      <span className="text-2xl">💡</span>
+                      <h4 className="text-xl font-bold text-blue-900 mt-2">Como a IA Personaliza</h4>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-4 text-center">
+                      <div className="p-4">
+                        <div className="text-3xl mb-2">📝</div>
+                        <p className="text-blue-800 font-medium">Você descreve seu perfil profissional</p>
+                      </div>
+                      <div className="p-4">
+                        <div className="text-3xl mb-2">🤖</div>
+                        <p className="text-blue-800 font-medium">IA analisa cada notícia para você</p>
+                      </div>
+                      <div className="p-4">
+                        <div className="text-3xl mb-2">🎯</div>
+                        <p className="text-blue-800 font-medium">Recebe insights específicos e práticos</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botões de Ação Centralizados */}
+              <div className="mt-8 flex flex-wrap gap-4 justify-center">
+                {!subscription || subscription.subscriptionStatus !== 'active' ? (
+                  <Link 
+                    to="/subscribe" 
+                    className="px-8 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 font-semibold text-lg shadow-lg hover:shadow-xl flex items-center"
                   >
-                    {isSaving ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Salvando...
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-save mr-2"></i>
-                        Salvar Perfil
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-              
-              {saveMessage && (
-                <div className={`p-4 rounded-lg ${
-                  saveMessage.includes('✅') 
-                    ? 'bg-green-50 text-green-700 border border-green-200' 
-                    : 'bg-red-50 text-red-700 border border-red-200'
-                }`}>
-                  {saveMessage}
-                </div>
-              )}
-              
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <h4 className="font-semibold text-blue-800 mb-2">💡 Como funciona?</h4>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• Descreva sua idade, profissão, interesses e situação atual</li>
-                  <li>• Nossa IA analisará como cada notícia pode impactar sua vida</li>
-                  <li>• Você receberá uma seção personalizada em cada notícia</li>
-                  <li>• Exemplo: "Como isso afeta você como estudante de medicina"</li>
-                </ul>
+                    <span className="mr-2">💳</span>
+                    Assinar Agora
+                  </Link>
+                ) : null}
+                
+                <Link 
+                  to="/" 
+                  className="px-8 py-4 bg-gray-700 text-white rounded-xl hover:bg-gray-800 transition-all duration-200 font-semibold text-lg shadow-lg hover:shadow-xl flex items-center"
+                >
+                  <span className="mr-2">🏠</span>
+                  Voltar ao Início
+                </Link>
               </div>
             </div>
           </div>
-
-          {/* Comandos WhatsApp */}
-          <div className="bg-green-50 p-6 rounded-lg mb-8">
-            <h3 className="text-xl font-semibold mb-4">📱 Comandos WhatsApp</h3>
-            <p className="text-gray-700 mb-3">
-              Envie estes comandos no WhatsApp para gerenciar sua conta:
-            </p>
-            <div className="space-y-2">
-              <div className="bg-white p-3 rounded border border-green-200">
-                <code className="text-green-600 font-mono">"configurar horario"</code>
-                <span className="text-gray-600 ml-2">- Alterar horário de entrega</span>
-              </div>
-              <div className="bg-white p-3 rounded border border-green-200">
-                <code className="text-green-600 font-mono">"status"</code>
-                <span className="text-gray-600 ml-2">- Ver status da assinatura</span>
-              </div>
-              <div className="bg-white p-3 rounded border border-green-200">
-                <code className="text-green-600 font-mono">"cancelar"</code>
-                <span className="text-gray-600 ml-2">- Informações sobre cancelamento</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Ações */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            {!subscription || subscription.subscriptionStatus !== 'active' ? (
-              <Link to="/subscribe" className="btn btn-primary flex-1">
-                <i className="fas fa-credit-card"></i>
-                Assinar Agora
-              </Link>
-            ) : (
-              <button className="btn btn-secondary flex-1">
-                <i className="fas fa-cog"></i>
-                Gerenciar Assinatura
-              </button>
-            )}
-            
-            <Link to="/" className="btn btn-secondary flex-1">
-              <i className="fas fa-home"></i>
-              Voltar ao Início
-            </Link>
-          </div>
-
         </div>
       </div>
     </div>

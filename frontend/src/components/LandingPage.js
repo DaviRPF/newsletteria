@@ -15,96 +15,150 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="container pt-8 pb-4">
+      <header className="container pt-12 pb-8">
         <div className="text-center">
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
-            📱 Newsletter WhatsApp
+          <div className="animate-float mb-6">
+            <div className="text-8xl mb-4">📱</div>
+          </div>
+          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
+            Newsletter <span className="gradient-text bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">WhatsApp</span>
           </h1>
-          <p className="text-xl text-white/90 max-w-2xl mx-auto">
-            Receba as principais notícias do Brasil direto no seu WhatsApp, 
-            todos os dias, de forma resumida e organizada.
+          <p className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto leading-relaxed">
+            🚀 Receba as <strong>6 principais notícias</strong> do Brasil direto no seu WhatsApp, 
+            <br className="hidden md:block" />
+            <span className="text-cyan-300">personalizadas por IA</span> e entregues no horário que você escolher
           </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-4 text-sm text-white/70">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+              <span>Notícias reescritas por IA</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+              <span>Análise personalizada</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+              <span>Horário customizável</span>
+            </div>
+          </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="container py-12">
-        <div className="card max-w-4xl mx-auto text-center">
-          <div className="mb-8">
-            <div className="text-6xl mb-4">📰</div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">
-              As 4 principais notícias do dia, direto no seu WhatsApp
+      <section className="container py-16">
+        <div className="card max-w-5xl mx-auto text-center shadow-glow">
+          <div className="mb-10">
+            <div className="animate-pulse-glow inline-block p-4 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 mb-6">
+              <div className="text-6xl">🤖</div>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-800 mb-6 leading-tight">
+              As <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">6 principais notícias</span> do dia,
+              <br />personalizadas para <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">você</span>
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Por apenas <strong className="text-green-600">R$ 5,00/mês</strong>, 
-              receba um resumo inteligente das notícias mais importantes do Brasil, 
-              reescritas pela IA para fácil leitura no WhatsApp.
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              Por apenas <strong className="text-green-600 text-2xl">R$ 5,00/mês</strong>, 
+              receba notícias selecionadas por IA avançada, reescritas para WhatsApp e 
+              <span className="font-semibold text-blue-600"> analisadas especificamente para seu perfil</span>
             </p>
           </div>
 
-          <div className="bg-green-50 p-6 rounded-12 mb-8">
-            <div className="flex items-center justify-center mb-4">
-              <i className="fas fa-gift text-green-600 text-2xl mr-3"></i>
-              <span className="text-xl font-semibold text-green-800">
-                2 dias grátis para testar!
+          <div className="glass-card p-8 rounded-3xl mb-10 border border-green-200">
+            <div className="flex items-center justify-center mb-6">
+              <div className="animate-bounce">
+                <span className="text-4xl mr-4">🎁</span>
+              </div>
+              <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                7 dias grátis para testar!
               </span>
             </div>
-            <p className="text-green-700">
-              Experimente sem compromisso. O trial começa apenas quando você confirma o pagamento.
+            <p className="text-green-700 text-lg">
+              ✨ Experimente todos os recursos sem compromisso
+              <br />
+              <span className="text-sm text-green-600">O trial começa apenas quando você confirma o pagamento</span>
             </p>
           </div>
 
-          <form onSubmit={handleSubscribe} className="max-w-md mx-auto">
-            <div className="form-group">
+          <form onSubmit={handleSubscribe} className="max-w-lg mx-auto">
+            <div className="form-group mb-6">
               <input
                 type="email"
-                placeholder="Digite seu email para começar"
-                className="form-input"
+                placeholder="✉️ Digite seu email para começar"
+                className="form-input text-lg"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
-            <button type="submit" className="btn btn-primary w-full">
-              <i className="fab fa-whatsapp"></i>
-              Começar Trial Grátis
+            <button type="submit" className="btn btn-primary w-full text-lg py-4 animate-pulse-glow">
+              <i className="fab fa-whatsapp text-xl"></i>
+              🚀 Começar Trial Grátis Agora
             </button>
+            <p className="text-sm text-gray-500 mt-4">
+              💳 Sem cartão de crédito necessário para o trial
+            </p>
           </form>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="container py-12">
-        <h3 className="text-3xl font-bold text-white text-center mb-12">
-          Por que escolher nossa newsletter?
-        </h3>
+      <section className="container py-20">
+        <div className="text-center mb-16">
+          <h3 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            Por que escolher nossa <span className="gradient-text bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">newsletter</span>?
+          </h3>
+          <p className="text-xl text-white/80 max-w-2xl mx-auto">
+            Tecnologia de ponta para entregar exatamente o que você precisa saber
+          </p>
+        </div>
         
         <div className="grid md:grid-cols-3 gap-8">
-          <div className="card text-center">
-            <div className="text-4xl mb-4">🤖</div>
-            <h4 className="text-xl font-semibold mb-3">IA Avançada</h4>
-            <p className="text-gray-600">
-              Usamos Gemini 1.5 Flash para analisar e reescrever as notícias, 
-              garantindo relevância e clareza.
+          <div className="card text-center group hover:scale-105 transition-all duration-300">
+            <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center">
+              <div className="text-3xl">🧠</div>
+            </div>
+            <h4 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+              IA Avançada
+            </h4>
+            <p className="text-gray-600 leading-relaxed mb-4">
+              Usamos <strong>Gemini 1.5 Flash</strong> para analisar, filtrar e reescrever as notícias, 
+              garantindo máxima relevância e clareza.
             </p>
+            <div className="text-sm text-blue-600 font-semibold">
+              ✨ Powered by Google AI
+            </div>
           </div>
 
-          <div className="card text-center">
-            <div className="text-4xl mb-4">⏰</div>
-            <h4 className="text-xl font-semibold mb-3">Horário Personalizado</h4>
-            <p className="text-gray-600">
-              Escolha o horário que prefere receber as notícias. 
-              Por padrão, enviamos às 10h da manhã.
+          <div className="card text-center group hover:scale-105 transition-all duration-300">
+            <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center">
+              <div className="text-3xl">🎯</div>
+            </div>
+            <h4 className="text-2xl font-bold mb-4 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+              Análise Personalizada
+            </h4>
+            <p className="text-gray-600 leading-relaxed mb-4">
+              Cada notícia vem com uma análise de <strong>como ela afeta você</strong> especificamente, 
+              baseada no seu perfil e interesses.
             </p>
+            <div className="text-sm text-green-600 font-semibold">
+              🎨 Feito sob medida para você
+            </div>
           </div>
 
-          <div className="card text-center">
-            <div className="text-4xl mb-4">📊</div>
-            <h4 className="text-xl font-semibold mb-3">Fontes Confiáveis</h4>
-            <p className="text-gray-600">
-              Coletamos notícias do UOL, Opera Mundi e outros veículos respeitados, 
-              sem duplicatas.
+          <div className="card text-center group hover:scale-105 transition-all duration-300">
+            <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center">
+              <div className="text-3xl">⏰</div>
+            </div>
+            <h4 className="text-2xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Total Controle
+            </h4>
+            <p className="text-gray-600 leading-relaxed mb-4">
+              Escolha seu horário ideal, gerencie tudo pelo WhatsApp e 
+              <strong> cancele quando quiser</strong>. Sem burocracias.
             </p>
+            <div className="text-sm text-purple-600 font-semibold">
+              📱 Gerenciamento via WhatsApp
+            </div>
           </div>
         </div>
       </section>

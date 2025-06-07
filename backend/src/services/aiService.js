@@ -17,6 +17,72 @@ class AIService {
     return this.model;
   }
 
+  // NOVO: Analisa perfil e identifica categorias específicas do CategoryService
+  async identifyUserCategories(profileDescription) {
+    try {
+      const model = this.initializeAI();
+      if (!model) throw new Error('AI não inicializada');
+      
+      const prompt = `
+Analise este perfil de usuário e identifique EXATAMENTE quais categorias específicas de interesse ele tem.
+
+CATEGORIAS DISPONÍVEIS:
+- futebol, volei, handebol, rugby, futsal, volei-praia, formula1 (esportes específicos)
+- tecnologia, economia, investimentos
+- saude, educacao, politica, internacional
+- cultura, entretenimento, seguranca
+- meio-ambiente, infraestrutura, justica, religiao
+
+REGRAS IMPORTANTES:
+1. Se mencionar esporte específico listado acima, use EXATAMENTE esse esporte
+2. Se mencionar esporte específico NÃO listado (ex: basquete, tênis, natação), NÃO inclua NENHUMA categoria de esporte (nem esporte genérico)
+3. Se disser "gosto de esportes" EM GERAL sem especificar, use "esporte"
+4. Seja LITERAL e ESPECÍFICO - apenas categorias que existem na lista e são EXPLICITAMENTE mencionadas
+5. NUNCA redirecione esportes específicos não listados para "esporte" genérico
+6. "cursando psicologia" = "psicologia", NÃO "educacao"
+7. NÃO adicione categorias que não são explicitamente mencionadas
+
+PERFIL DO USUÁRIO: "${profileDescription}"
+
+EXEMPLOS:
+- "gosto de futebol" → "futebol"
+- "jogo volei" → "volei" 
+- "gosto de formula 1" → "formula1"
+- "cursando psicologia" → "psicologia"
+- "trabalho com tecnologia" → "tecnologia"
+- "gosto de basquete" → "" (não inclui nada de esporte)
+- "gosto de tênis" → "" (não inclui nada de esporte)
+- "gosto de esportes" → "esporte"
+- "acompanho esportes em geral" → "esporte"
+- "gosto de saber sobre tudo que acontece no mundo" → "internacional"
+- "opa eu sou amanda, eu gosto de formula 1 e to cursando psicologia, gosto de saber sobre tudo que ta acontecendo no mundo" → "formula1,psicologia,internacional"
+
+Responda APENAS com uma lista das categorias relevantes separadas por vírgula, sem explicações.
+Se não houver perfil ou categorias claras, responda: "geral"
+
+Exemplo: "tecnologia,investimentos,futebol"`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const responseText = response.text().trim();
+      
+      tokenTracker.addEstimatedUsage('USER_CATEGORIES', prompt, responseText, `Profile: "${profileDescription.substring(0, 30)}..."`);
+      
+      if (responseText === "geral" || !responseText) {
+        return [];
+      }
+      
+      const categories = responseText.split(',').map(cat => cat.trim()).filter(cat => cat.length > 0);
+      console.log(`🎯 IA identificou categorias: ${categories.join(', ')}`);
+      
+      return categories;
+      
+    } catch (error) {
+      console.error('❌ Erro na identificação de categorias:', error.message);
+      return [];
+    }
+  }
+
   async scoreNewsRelevance(title, content, source) {
     try {
       const model = this.initializeAI();
@@ -73,17 +139,20 @@ Responda APENAS com um número de 0 a 100, nada mais:`;
 Reescreva esta notícia para um newsletter via WhatsApp seguindo estas diretrizes:
 
 FORMATO:
-- Máximo 4 parágrafos
+- 3-4 parágrafos concisos (80-120 palavras total)
 - Linguagem clara e acessível
 - Tom informativo mas envolvente
-- Foque nos fatos mais importantes
-- Inclua contexto quando necessário
+- Foque apenas nos fatos mais importantes
+- Inclua o impacto principal da notícia
+- Mencione dados essenciais quando relevante
 
 ESTILO:
-- Use emojis moderadamente (1-2 por parágrafo)
+- Use emojis moderadamente (1 por parágrafo)
 - Frases curtas e diretas
 - Evite jargão técnico
 - Mantenha o interesse do leitor
+- Seja conciso mas informativo
+- Vá direto ao ponto
 
 CONTEÚDO ORIGINAL:
 Título: ${title}
@@ -400,41 +469,36 @@ Retorne APENAS o número da pontuação (0-100), sem explicações.
       }
 
       const prompt = `
-Analise este perfil de usuário e identifique quais categorias de notícias interessam a ele:
+Analise este perfil de usuário e identifique EXATAMENTE quais são os interesses específicos da pessoa:
 
 PERFIL: ${userProfile}
 
-CATEGORIAS DISPONÍVEIS:
-- politica (sempre incluir como base)
-- economia
-- tecnologia
-- esporte
-- futebol
-- saude
-- educacao
-- cultura
-- entretenimento
-- meio-ambiente
-- seguranca
-- infraestrutura
-- justica
-- religiao
+INSTRUÇÕES:
+1. Identifique os interesses REAIS e ESPECÍFICOS mencionados pela pessoa
+2. Use termos descritivos livres, não categorias fixas
+3. Seja preciso - se menciona "vôlei", use "volei", se menciona "ações", use "investimentos"
+4. Se menciona esportes específicos, use o nome do esporte
+5. Se menciona áreas profissionais, use a área específica
+6. Máximo 4 interesses principais
+7. Se não conseguir identificar interesses claros, use ["noticias-gerais"]
 
-REGRAS:
-1. SEMPRE inclua "politica" (é obrigatório)
-2. Máximo 4 categorias no total
-3. Se não identificar interesses específicos, retorne apenas ["politica"]
-4. Se identificar apenas 1 interesse, retorne ["politica", "categoria_identificada"]
-5. Priorize os interesses mais claros do perfil
+EXEMPLOS DE ANÁLISE LIVRE:
+- "Sou desenvolvedor de software" → ["programacao", "tecnologia"]
+- "Trabalho com vendas e gosto de futebol" → ["vendas", "futebol"]
+- "Jogo vôlei e handball" → ["volei", "handebol"]
+- "Gosto de acompanhar a bolsa de valores" → ["investimentos", "mercado-financeiro"]
+- "Sou médico pediatra" → ["medicina", "pediatria"]
+- "Advogado criminalista que acompanha política" → ["direito-criminal", "politica"]
+- "Professor de matemática interessado em educação" → ["matematica", "educacao"]
+- "Empresário que investe em startups de tech" → ["empreendedorismo", "investimentos", "tecnologia"]
 
-EXEMPLOS:
-- "Sou desenvolvedor de software" → ["politica", "tecnologia"]
-- "Trabalho com vendas e gosto de futebol" → ["politica", "economia", "futebol"]  
-- "Professor de matemática" → ["politica", "educacao"]
-- "Médico veterinário" → ["politica", "saude"]
-- "Não tenho preferências" → ["politica"]
+IMPORTANTE: 
+- Use os termos EXATOS que a pessoa menciona
+- Não force categorias que não existem no perfil
+- Seja específico e literal
+- Uma política só se explicitamente mencionada
 
-Responda APENAS com um array JSON, exemplo: ["politica", "tecnologia"]
+Responda APENAS com um array JSON com os interesses identificados:
 `;
 
       const result = await model.generateContent(prompt);
@@ -463,10 +527,8 @@ Responda APENAS com um array JSON, exemplo: ["politica", "tecnologia"]
           return ['politica'];
         }
 
-        // Garante que política está incluída
-        if (!categories.includes('politica')) {
-          categories.unshift('politica');
-        }
+        // NÃO força política - deixa apenas os interesses identificados
+        // (política será adicionada pela distribuição se necessário)
 
         // Limita a 4 categorias
         const validCategories = categories.slice(0, 4);
@@ -485,6 +547,97 @@ Responda APENAS com um array JSON, exemplo: ["politica", "tecnologia"]
     }
   }
 
+  // NOVO: Avalia múltiplas notícias de uma vez (batch processing)
+  async scoreCategoryRelevanceBatch(newsArray, category, userProfile = null) {
+    try {
+      const model = this.initializeAI();
+      if (!model) throw new Error('AI não inicializada');
+
+      const categoryDescriptions = {
+        'politica': 'política, governo, eleições, ministros, congresso, STF, leis, decisões governamentais',
+        'economia': 'economia geral, PIB, empresas, negócios, setor bancário, indústria, crescimento econômico',
+        'investimentos': 'investimentos, bolsa de valores, ações, fundos, Bitcoin, criptomoedas, dividendos, mercado financeiro, trader, Bovespa, B3',
+        'tecnologia': 'tecnologia, programação, software, hardware, IA, computadores, internet, aplicativos, startups, inovação digital',
+        'esporte': 'esportes em geral, competições, atletas, jogos, campeonatos, olimpíadas',
+        'futebol': 'futebol específico, times brasileiros, seleção, Série A, Libertadores, Copa do Brasil',
+        'volei': 'vôlei, voleibol, Superliga, seleção brasileira de vôlei, Liga das Nações de vôlei, CBV',
+        'handebol': 'handebol, handball, seleção brasileira de handebol, mundial de handebol, CBHb',
+        'rugby': 'rugby, rugbi, seleção brasileira de rugby, World Rugby, rugby sevens',
+        'futsal': 'futsal, liga de futsal, seleção brasileira de futsal, mundial de futsal, CBFS',
+        'volei-praia': 'vôlei de praia, beach volleyball, circuito mundial de vôlei de praia, CBV praia',
+        'formula1': 'Fórmula 1, F1, Grande Prêmio, GP, Verstappen, Hamilton, Ferrari, Mercedes, Red Bull, McLaren, Interlagos',
+        'saude': 'saúde, medicina, hospitais, tratamentos, medicamentos, doenças, prevenção',
+        'educacao': 'educação, escolas, universidades, professores, ensino, cursos, graduação'
+      };
+
+      const categoryDesc = categoryDescriptions[category] || category;
+
+      // Cria lista de notícias numeradas
+      const newsList = newsArray.map((news, index) => `
+${index + 1}. TÍTULO: ${news.title}
+   CONTEÚDO: ${news.originalContent?.substring(0, 400) || 'Sem conteúdo'}...
+`).join('\n');
+
+      const prompt = `
+Analise a relevância de ${newsArray.length} notícias para a categoria "${category}".
+
+CATEGORIA: ${category} - ${categoryDesc}
+
+NOTÍCIAS PARA AVALIAR:
+${newsList}
+
+AVALIE CADA NOTÍCIA COM BASE EM:
+1. RELEVÂNCIA DIRETA: A notícia trata DIRETAMENTE do assunto da categoria?
+2. IMPORTÂNCIA: É uma notícia significativa e impactante ou apenas trivial?
+3. ATUALIDADE: É informação relevante e atual?
+4. QUALIDADE: É conteúdo substancial ou apenas clickbait/fofoca?
+
+EXEMPLOS DE SCORING:
+- Muito relevante e importante = 80-95
+- Relevante mas não essencial = 60-79  
+- Pouco relevante = 30-59
+- Irrelevante = 0-29
+
+${userProfile ? `PERFIL DO USUÁRIO: ${userProfile}` : ''}
+
+Responda APENAS com os scores em uma linha, separados por vírgula:
+Exemplo: 85,72,45,90,15,78
+`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const responseText = response.text().trim();
+
+      // Rastreia tokens
+      tokenTracker.addEstimatedUsage('CATEGORY_RELEVANCE_BATCH', prompt, responseText, `${newsArray.length} notícias -> ${category}`);
+
+      // Parse dos scores
+      const scores = responseText.split(',').map(score => {
+        const parsedScore = parseInt(score.trim());
+        return isNaN(parsedScore) ? 50 : Math.min(100, Math.max(0, parsedScore));
+      });
+
+      // Se não conseguiu parsear todos os scores, preenche com 50
+      while (scores.length < newsArray.length) {
+        scores.push(50);
+      }
+
+      console.log(`🤖 [${category}] Batch de ${newsArray.length} notícias -> Scores: [${scores.join(', ')}]`);
+      
+      return scores;
+    } catch (error) {
+      console.error('Erro ao avaliar batch de relevância da categoria:', error);
+      // Retorna scores médios para todas as notícias
+      return new Array(newsArray.length).fill(50);
+    }
+  }
+
+  // Mantém método individual para compatibilidade
+  async scoreCategoryRelevance(title, content, category, userProfile = null) {
+    const result = await this.scoreCategoryRelevanceBatch([{title, originalContent: content}], category, userProfile);
+    return result[0];
+  }
+
   async generatePersonalizedImpact(newsTitle, newsContent, userProfile) {
     try {
       const model = this.initializeAI();
@@ -495,7 +648,7 @@ Responda APENAS com um array JSON, exemplo: ["politica", "tecnologia"]
       }
 
       const prompt = `
-Analise como esta notícia pode impactar especificamente este usuário baseado no perfil dele:
+Analise esta notícia sob a perspectiva específica deste usuário, fornecendo um insight PRÁTICO e BEM FORMATADO para WhatsApp:
 
 PERFIL DO USUÁRIO:
 ${userProfile}
@@ -504,19 +657,36 @@ NOTÍCIA:
 Título: ${newsTitle}
 Conteúdo: ${newsContent.substring(0, 800)}...
 
-INSTRUÇÕES:
-1. Escreva uma análise personalizada de 2-3 frases
-2. SEMPRE encontre uma conexão com o perfil do usuário, mesmo que indireta
-3. Considere aspectos como: ambiente de negócios, tendências tecnológicas, oportunidades de carreira, contexto social
-4. Use uma linguagem direta e relevante
-5. Seja criativo para encontrar conexões relevantes
+FORMATO OBRIGATÓRIO PARA WHATSAPP:
+- Máximo 3-4 linhas
+- Use emojis moderadamente (1-2 por parágrafo)
+- Frases curtas e diretas
+- Foque em UMA oportunidade/impacto específico
+- Linguagem clara e objetiva
 
-EXEMPLOS DE ANÁLISE CRIATIVA:
-- Para desenvolvedor sobre política: "Como desenvolvedor, mudanças políticas podem afetar regulamentações de dados, políticas de inovação e ambiente de startups."
-- Para pessoa interessada em tecnologia sobre economia: "Flutuações econômicas impactam investimentos em tecnologia e podem criar oportunidades para soluções inovadoras."
-- Para programador sobre questões sociais: "Como pessoa da área tech, você pode considerar como a tecnologia pode ajudar a resolver problemas sociais similares."
+CRITÉRIOS DE CONTEÚDO:
+1. Seja ESPECÍFICO para o perfil profissional do usuário
+2. Mencione UMA oportunidade concreta ou impacto direto
+3. Sugira UMA ação prática quando possível
+4. Evite listas numeradas - use texto corrido
+5. Foque no que é mais relevante para ESSA pessoa
 
-Escreva APENAS a análise, sem títulos ou formatação extra:
+EXEMPLOS DE ANÁLISES BEM FORMATADAS:
+- Desenvolvedor sobre IA: "💻 Esta regulamentação pode abrir mercado de compliance em IA. Considere se especializar em AI ethics - área com salários 40% maiores e alta demanda."
+
+- Médico sobre telemedicina: "🏥 A mudança pode reduzir consultas presenciais em 30%. Invista em plataformas de telemedicina agora - setor cresce 200% ao ano."
+
+- Professor sobre educação digital: "📚 A reforma prioriza competências digitais. Desenvolva habilidades em EdTech - professores especializados ganham até R$ 8mil/mês."
+
+EVITE ABSOLUTAMENTE:
+- Textos longos e densos
+- Listas numeradas extensas
+- Análises genéricas
+- Múltiplas oportunidades numa só análise
+
+Se não houver conexão REAL e ESPECÍFICA, retorne: "Esta notícia não tem impacto direto no seu perfil profissional atual."
+
+Escreva APENAS a análise concisa e bem formatada:
 `;
 
       const result = await model.generateContent(prompt);
@@ -534,9 +704,10 @@ Escreva APENAS a análise, sem títulos ou formatação extra:
         return null;
       }
       
-      // Se a IA disser que não tem impacto direto, reformula para uma resposta mais útil
-      if (analysis.toLowerCase().includes('não tem impacto direto')) {
-        return "Como desenvolvedor, você pode acompanhar este tema para entender melhor o cenário político e tecnológico do país, que pode influenciar o ambiente de negócios e inovação.";
+      // Se a IA disser que não tem impacto direto, não mostra análise (é melhor sem do que genérica)
+      if (analysis.toLowerCase().includes('não tem impacto direto no seu perfil profissional atual')) {
+        console.log(`📰 DEBUG: Notícia sem impacto específico para o perfil do usuário`);
+        return null;
       }
 
       return analysis;

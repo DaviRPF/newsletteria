@@ -37,7 +37,29 @@ class NewsDistributionService {
   // Distribui as 6 notícias baseado nos interesses do usuário
   calculateNewsDistribution(userInterests) {
     const totalNews = 6;
+    const hasPolitics = userInterests.includes('politica');
     
+    // Se não tem política nos interesses, adiciona 1 obrigatória + distribui o resto
+    if (!hasPolitics && userInterests.length > 0) {
+      const distribution = { 'politica': 1 }; // 1 obrigatória
+      const remainingNews = 5; // Sobram 5 notícias
+      const otherInterests = userInterests.slice(0, 3); // Máximo 3 outros interesses
+      
+      if (otherInterests.length === 1) {
+        distribution[otherInterests[0]] = 5; // 1 política + 5 do interesse
+      } else if (otherInterests.length === 2) {
+        distribution[otherInterests[0]] = 3; // 1 política + 3 + 2
+        distribution[otherInterests[1]] = 2;
+      } else if (otherInterests.length === 3) {
+        distribution[otherInterests[0]] = 2; // 1 política + 2 + 2 + 1
+        distribution[otherInterests[1]] = 2;
+        distribution[otherInterests[2]] = 1;
+      }
+      
+      return distribution;
+    }
+    
+    // Se tem política explicitamente ou nenhum interesse
     if (userInterests.length === 1) {
       // Só política: todas as 6 notícias são políticas
       return {
@@ -96,10 +118,23 @@ class NewsDistributionService {
           continue;
         }
 
-        // Coleta notícias das fontes da categoria
-        const categoryNews = await this.collectFromCategorySources(sources, count * 2); // Coleta 2x mais para ter opções
+        // Coleta notícias das fontes da categoria (mais para compensar filtros rigorosos)
+        let categoryNews = await this.collectFromCategorySources(sources, count * 5); // Coleta 5x mais para ter opções
         
-        categorizedNews[category] = categoryNews.slice(0, count); // Pega só a quantidade necessária
+        // Filtra por relevância da categoria usando IA
+        let relevantNews = await this.filterNewsByCategoryAI(categoryNews, category);
+        console.log(`   🎯 ${relevantNews.length}/${categoryNews.length} notícias relevantes para ${category}`);
+        
+        // Se não tem notícias suficientes, tenta coletar de todas as fontes da categoria
+        if (relevantNews.length < count && sources.length > 3) {
+          console.log(`   🔄 Tentando coletar de mais fontes (${sources.length} disponíveis)...`);
+          const allCategoryNews = await this.collectFromCategorySources(sources, count * 8); // Usa todas as fontes
+          const allRelevantNews = await this.filterNewsByCategoryAI(allCategoryNews, category);
+          relevantNews = allRelevantNews;
+          console.log(`   📈 ${relevantNews.length} notícias relevantes após expandir fontes`);
+        }
+        
+        categorizedNews[category] = relevantNews.slice(0, count); // Pega só a quantidade necessária
         
       } catch (error) {
         console.error(`❌ Erro ao coletar notícias de ${category}:`, error.message);
@@ -119,6 +154,7 @@ class NewsDistributionService {
       try {
         console.log(`   📰 Coletando de: ${source.name}`);
         const sourceNews = await newsService.default.fetchNewsFromSource(source);
+        console.log(`       → ${sourceNews.length} notícias baixadas de ${source.name}`);
         
         // Filtra notícias das últimas 24 horas
         const recentNews = sourceNews.filter(item => {
@@ -127,6 +163,13 @@ class NewsDistributionService {
           const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
           return !isNaN(pubDate.getTime()) && pubDate > twentyFourHoursAgo;
         });
+
+        console.log(`       → ${recentNews.length} notícias das últimas 24h`);
+        if (recentNews.length > 0) {
+          recentNews.slice(0, 3).forEach((item, index) => {
+            console.log(`       ${index + 1}. "${item.title?.substring(0, 40)}..."`);
+          });
+        }
 
         news.push(...recentNews);
         
@@ -141,7 +184,7 @@ class NewsDistributionService {
     const uniqueNews = this.removeDuplicates(news);
     const sortedNews = uniqueNews.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
     
-    console.log(`   ✅ ${sortedNews.length} notícias coletadas`);
+    console.log(`   ✅ ${sortedNews.length} notícias únicas coletadas`);
     return sortedNews;
   }
 
@@ -162,8 +205,15 @@ class NewsDistributionService {
   combineNews(categorizedNews, distribution) {
     const finalNews = [];
     
+    console.log('🔍 DEBUG: Combinando notícias categorizadas:');
+    console.log('📊 Distribuição esperada:', distribution);
+    console.log('📰 Notícias disponíveis por categoria:');
+    for (const [category, newsArray] of Object.entries(categorizedNews)) {
+      console.log(`   ${category}: ${newsArray.length} notícias`);
+    }
+    
     // Adiciona notícias na ordem de prioridade (política primeiro)
-    const priorityOrder = ['politica', 'economia', 'tecnologia', 'esporte', 'futebol', 'saude', 'educacao', 'cultura', 'entretenimento'];
+    const priorityOrder = ['politica', 'economia', 'investimentos', 'tecnologia', 'esporte', 'futebol', 'saude', 'educacao', 'cultura', 'entretenimento'];
     
     for (const category of priorityOrder) {
       if (categorizedNews[category] && distribution[category]) {
@@ -171,15 +221,27 @@ class NewsDistributionService {
         const available = categorizedNews[category].slice(0, needed);
         
         console.log(`📰 Adicionando ${available.length}/${needed} notícias de ${category}`);
+        if (available.length > 0) {
+          available.forEach((news, index) => {
+            console.log(`   ${index + 1}. "${news.title?.substring(0, 50)}..." [${news.source}]`);
+          });
+        }
         finalNews.push(...available);
+      } else if (distribution[category]) {
+        console.log(`⚠️ Categoria ${category} esperava ${distribution[category]} notícias mas não tem notícias disponíveis`);
       }
     }
 
     // Se não conseguiu 6 notícias, completa com notícias gerais de política
-    if (finalNews.length < 6 && categorizedNews['politica']) {
+    if (finalNews.length < 6) {
       const remaining = 6 - finalNews.length;
-      const extraPolitics = categorizedNews['politica'].slice(distribution['politica'] || 0, (distribution['politica'] || 0) + remaining);
-      finalNews.push(...extraPolitics);
+      console.log(`🔄 Faltam ${remaining} notícias, preenchendo com política...`);
+      
+      if (categorizedNews['politica'] && categorizedNews['politica'].length > (distribution['politica'] || 0)) {
+        const extraPolitics = categorizedNews['politica'].slice(distribution['politica'] || 0, (distribution['politica'] || 0) + remaining);
+        finalNews.push(...extraPolitics);
+        console.log(`📰 Adicionadas ${extraPolitics.length} notícias extras de política`);
+      }
     }
 
     return finalNews.slice(0, 6); // Garante que são exatamente 6
@@ -210,6 +272,134 @@ class NewsDistributionService {
       const newsService = await import('./newsService.js');
       return await newsService.default.fetchAllNews(null, null);
     }
+  }
+
+  // Sistema híbrido: Keywords primeiro + IA para casos duvidosos
+  async filterNewsByCategoryAI(news, category) {
+    if (category === 'politica') return news; // Política aceita qualquer notícia política
+    if (news.length === 0) return news;
+    
+    // FASE 1: Filtro básico com keywords (rápido, sem tokens)
+    const keywordFiltered = this.filterNewsByKeywords(news, category);
+    console.log(`   📝 ${keywordFiltered.accepted.length} aceitas por keywords, ${keywordFiltered.rejected.length} rejeitadas, ${keywordFiltered.uncertain.length} incertas`);
+    
+    // FASE 2: IA apenas para casos incertos (economiza tokens)
+    const aiService = await import('./aiService.js');
+    const finalRelevant = [...keywordFiltered.accepted]; // Começa com as aceitas por keywords
+    
+    if (keywordFiltered.uncertain.length > 0) {
+      console.log(`   🤖 Avaliando ${keywordFiltered.uncertain.length} notícias incertas com IA...`);
+      
+      const maxUncertain = Math.min(keywordFiltered.uncertain.length, 8); // Máximo 8 incertas para IA
+      
+      for (let i = 0; i < maxUncertain; i++) {
+        const item = keywordFiltered.uncertain[i];
+        try {
+          const isRelevant = await aiService.default.scoreCategoryRelevance(
+            item.title,
+            item.originalContent || '',
+            category
+          );
+          
+          if (isRelevant) {
+            finalRelevant.push(item);
+          }
+        } catch (error) {
+          console.log(`   ⚠️ Erro na IA para "${item.title?.substring(0, 30)}...": ${error.message}`);
+          // Se erro na IA, não inclui (melhor filtrar do que incluir lixo)
+        }
+      }
+    }
+    
+    return finalRelevant;
+  }
+
+  // Filtro rápido por keywords (sem tokens)
+  filterNewsByKeywords(news, category) {
+    const categoryConfig = {
+      'investimentos': {
+        strongKeywords: ['ibovespa', 'bovespa', 'b3', 'ações', 'dividendos', 'fundos', 'bitcoin', 'criptomoeda'],
+        weakKeywords: ['investimento', 'bolsa', 'mercado financeiro', 'trader', 'dólar'],
+        excludeKeywords: ['romance', 'namoro', 'entretenimento', 'celebridade', 'basquete', 'futebol', 'tênis'],
+      },
+      'tecnologia': {
+        strongKeywords: ['programação', 'software', 'hardware', 'aplicativo', 'app', 'google', 'microsoft', 'apple'],
+        weakKeywords: ['tecnologia', 'tech', 'digital', 'inovação', 'internet', 'computador'],
+        excludeKeywords: ['meteoro', 'aurora', 'espaço', 'astronauta', 'planeta', 'estrela', 'galáxia'],
+      },
+      'economia': {
+        strongKeywords: ['pib', 'empresas', 'receita', 'lucro', 'crescimento', 'economia'],
+        weakKeywords: ['negócios', 'setor', 'indústria', 'mercado'],
+        excludeKeywords: ['entretenimento', 'celebridade', 'romance'],
+      },
+      'esporte': {
+        strongKeywords: ['futebol', 'basquete', 'tênis', 'vôlei', 'time', 'jogador', 'campeonato'],
+        weakKeywords: ['esporte', 'atleta', 'copa', 'olimpíadas'],
+        excludeKeywords: ['política', 'governo'],
+      },
+      'volei': {
+        strongKeywords: ['vôlei', 'volei', 'voleibol', 'volleyball', 'superliga', 'cbv'],
+        weakKeywords: ['liga das nações', 'seleção brasileira'],
+        excludeKeywords: ['futebol', 'basquete', 'tênis'],
+      },
+      'handebol': {
+        strongKeywords: ['handebol', 'handball', 'cbhb'],
+        weakKeywords: ['seleção brasileira', 'mundial'],
+        excludeKeywords: ['futebol', 'basquete', 'vôlei'],
+      },
+      'rugby': {
+        strongKeywords: ['rugby', 'rugbi', 'rugby sevens'],
+        weakKeywords: ['seleção brasileira', 'world rugby'],
+        excludeKeywords: ['futebol', 'basquete', 'vôlei'],
+      },
+      'futsal': {
+        strongKeywords: ['futsal', 'liga futsal', 'cbfs'],
+        weakKeywords: ['seleção brasileira', 'mundial'],
+        excludeKeywords: ['futebol de campo', 'basquete', 'vôlei'],
+      },
+      'volei-praia': {
+        strongKeywords: ['vôlei de praia', 'volei de praia', 'beach volleyball', 'cbv praia'],
+        weakKeywords: ['circuito mundial', 'praia'],
+        excludeKeywords: ['futebol', 'basquete', 'vôlei indoor'],
+      }
+    };
+
+    const config = categoryConfig[category];
+    if (!config) return { accepted: news, rejected: [], uncertain: [] };
+
+    const accepted = [];
+    const rejected = [];
+    const uncertain = [];
+
+    for (const item of news) {
+      const title = item.title?.toLowerCase() || '';
+      const content = item.originalContent?.toLowerCase() || '';
+      const combined = title + ' ' + content;
+      
+      // Verifica exclusões
+      const hasExclusion = config.excludeKeywords.some(keyword => combined.includes(keyword));
+      if (hasExclusion) {
+        rejected.push(item);
+        continue;
+      }
+      
+      // Verifica palavras fortes (aceita automaticamente)
+      const hasStrong = config.strongKeywords.some(keyword => combined.includes(keyword));
+      if (hasStrong) {
+        accepted.push(item);
+        continue;
+      }
+      
+      // Verifica palavras fracas (incerto, vai para IA)
+      const hasWeak = config.weakKeywords.some(keyword => combined.includes(keyword));
+      if (hasWeak) {
+        uncertain.push(item);
+      } else {
+        rejected.push(item);
+      }
+    }
+
+    return { accepted, rejected, uncertain };
   }
 
   // Limpa o cache quando necessário

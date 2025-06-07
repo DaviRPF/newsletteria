@@ -543,27 +543,27 @@ Ou entre em contato conosco através do nosso suporte.`;
 
     await this.client.sendText(chatId, message);
 
+    // Debug: sempre mostrar se há imageUrl
+    console.log(`🔍 DEBUG imageUrl da notícia ${articleNumber}: ${article.imageUrl || 'NENHUMA'}`);
+    
     // Envia imagem se disponível e válida
     if (article.imageUrl) {
       try {
-        // Filtra apenas imagens válidas (não SVG ou logos)
-        const isValidImage = !article.imageUrl.includes('.svg') && 
-                            !article.imageUrl.includes('logo') &&
-                            (article.imageUrl.includes('.jpg') || 
-                             article.imageUrl.includes('.jpeg') || 
-                             article.imageUrl.includes('.png') || 
-                             article.imageUrl.includes('.webp'));
+        // Tenta enviar qualquer imagem, exceto SVGs óbvios
+        const isObviousSvg = article.imageUrl.toLowerCase().includes('.svg');
         
-        if (isValidImage) {
+        if (!isObviousSvg) {
           console.log(`📸 Enviando imagem da notícia ${articleNumber}: ${article.imageUrl}`);
           await this.client.sendImage(chatId, article.imageUrl, `noticia-${articleNumber}`, `📸 Imagem da Notícia ${articleNumber}`);
           await new Promise(resolve => setTimeout(resolve, 1000));
         } else {
-          console.log(`⚠️ Imagem não suportada ignorada (SVG/logo): ${article.imageUrl}`);
+          console.log(`⚠️ Imagem SVG ignorada: ${article.imageUrl}`);
         }
       } catch (imgError) {
         console.error('Erro ao enviar imagem:', imgError);
       }
+    } else {
+      console.log(`📭 Notícia ${articleNumber} não tem imagem`);
     }
   }
 
